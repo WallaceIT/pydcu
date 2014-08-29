@@ -1,15 +1,8 @@
 You get drivers at:
-http://www.ids-imaging.com/drivers.php?cat=2
-or at
+    
+http://en.ids-imaging.com/download-ueye.html
 
-After installed you should have /usr/lib/libueye_api.so in your
+After installed you should have /usr/lib/libueye_api.so on your
 machine.
 
-Check sample.py for more on usage.
-
-------------- Usage ------------------------------------------------------------
-
-from uc480 import pycam
-
-camera = pycam()
-camera.snapshot('some_name.bmp')
+Check sample.py and qt_sample to get started. 
