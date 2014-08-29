@@ -5,4 +5,4 @@ http://en.ids-imaging.com/download-ueye.html
 After installed you should have /usr/lib/libueye_api.so on your
 machine.
 
-Check sample.py and qt_sample to get started. 
+Check sample.py and qt_example.py to get started. 
