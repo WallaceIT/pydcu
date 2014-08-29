@@ -362,7 +362,7 @@ class camera(HCAM):
         r = CALL("SetImageMem",self,self.image,self.id)
         return self.CheckForSuccessError(r)
         
-    def SetImageSize(self,x=IS.GET_IMAGE_SIZE_X_MAX,y=0):#non-zero ret
+    def SetImageSize(self,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
         """
         Sets the image size.
 
@@ -381,6 +381,31 @@ class camera(HCAM):
         if x & 0x8000 == 0x8000:
             return self.CheckForNoSuccessError(r)
         return self.CheckForSuccessError(r)
+
+    def GetImageSize(self): #,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
+        """
+        Sets the image size.
+
+        If x is configure to:
+        IS.GET_IMAGE_SIZE_X     Retrieval of current width
+        IS.GET_IMAGE_SIZE_X_MIN Smallest value for the AOI width
+        IS.GET_IMAGE_SIZE_X_MAX Largest value for the AOI width
+        IS.GET_IMAGE_SIZE_X_INC Increment for the AOI width
+        IS.GET_IMAGE_SIZE_Y     Retrieval of current height
+        IS.GET_IMAGE_SIZE_Y_MIN Smallest value for the AOI height
+        IS.GET_IMAGE_SIZE_Y_MAX Largest value for the AOI height
+        IS.GET_IMAGE_SIZE_Y_INC Increment for the AOI height
+        y is ignored and the specified size is returned.
+        """
+        width_c=ctypes.c_int(IS.GET_IMAGE_SIZE_X)
+        height_c=ctypes.c_int(IS.GET_IMAGE_SIZE_Y)
+        width = CALL("SetImageSize",self, width_c)
+        height = CALL("SetImageSize",self, height_c)
+        #if r == 0:
+        return ([width, height])
+
+        #else:
+        #    return self.CheckForSuccessError(r)
         
 
     def FreeImageMem (self):
@@ -598,5 +623,61 @@ class camera(HCAM):
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
 
+    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=100, y=100, width=640, height=480):
+        """
+        With is_SetAOI() the size and position of an AOI can be set with one command call. Possible
+        AOI are:
+        - Image AOI
+        - Auto Brightness AOI
+        - Auto Whitebalance AOI
+        The auto image areas are used for appropriate auto functionality. As default value the win-
+        dow is always maximally, thus always as large as the current image AOI.
+
+        Keyword arguments:
+        hf -- Camera handle
+        Type -- 
+         IS_SET_IMAGE_AOI -- Set Image AOI
+         IS_GET_IMAGE_AOI -- Returns the current Image AOI
+         IS_SET_AUTO_BRIGHT_AOI -- Set the Auto Feature AOI for Auto Gain and Auto Shutter
+         IS_GET_AUTO_BRIGHT_AOI -- Returns current average value of the AOI
+         IS_SET_AUTO_WB_AOI -- Set AOI for Auto Whitebalance
+         IS_GET_AUTO_WB_AOI -- Returns the current Auto Whitebalance AOI
+        pXPos -- Horizontal position of the AOI
+        pYPos -- Vertical position the AOI
+        pWidth -- Width of the AOI
+        pHeight -- Height of the AOI
+        """
+        xPos_c = ctypes.c_int(x)
+        yPos_c = ctypes.c_int(y)
+        width_c = ctypes.c_int(width)
+        height_c = ctypes.c_int(height)
+        isType_c = ctypes.c_int(isType)
+        r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
+        if r == 0:
+            return([xPos_c.value, yPos_c.value, width_c.value, height_c.value])
+        else:
+            return self.CheckForSuccessError(r)
+
+    def GetAOI(self, isType=IS.GET_IMAGE_AOI, x=0, y=0, width=0, height=0):
+        return self.SetAOI(isType, x, y, width, height)
+
+    def SetFrameRate(self, fps=30):
+        fps_c = ctypes.c_double(fps)
+        new_fps_c = ctypes.c_double(0)
+        r = CALL('SetFrameRate', self, fps_c, byref(new_fps_c))
+        if r == 0:
+            return new_fps_c.value
+
+    def GetFrameRate(self):
+        return self.SetFrameRate(fps=IS.GET_FRAMERATE)
+
     def isOpened(self):
         return True
+
+    def read(self):
+        """ 
+        wrapper to make analogous to opencv call
+        return most recent frame
+        """
+        self.CopyImageMem()
+        return 0, self.data
