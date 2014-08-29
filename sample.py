@@ -1,20 +1,17 @@
 import ueye
-import numpy as np
 import matplotlib.cm as cm
 import matplotlib.mlab as mlab
 import matplotlib.pyplot as plt
+import ctypes
+
 
 camera = ueye.camera(1)
-camera.AllocImageMem()
+camera.AllocImageMem(width=1280,height=1024,bitpixel=8)
 camera.SetImageMem()
 camera.SetImageSize()
-camera.SetColorMode()
-camera.CaptureVideo()
-raw_input("enter to stop")
+camera.FreezeVideo()
 camera.CopyImageMem()
-print np.sum(camera.data)
 im = plt.imshow(camera.data, cmap=cm.gray, aspect='equal')
-camera.StopLiveVideo()
+plt.show()
 camera.FreeImageMem()
 camera.ExitCamera()
-plt.show()

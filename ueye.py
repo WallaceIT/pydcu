@@ -20,6 +20,8 @@ from numpy import zeros,uint8,ctypeslib
 from ctypes import byref,c_int,create_string_buffer,c_char_p,cdll,util,c_void_p
 import IS
 import ctypes
+import numpy as np
+import pdb 
 
 SUCCESS = 0
 NO_SUCCESS = -1
@@ -158,10 +160,14 @@ class camera(HCAM):
         r = CALL('InitCamera',byref(self),HWND(0))
         if r is not SUCCESS:
             raise Exception("Error %d"%r)
-        self.width = 1024
-        self.height = 768        
+        self.width = 1280
+        self.height = 1024        
         self.seq = 0
-        self.data = zeros((self.height,self.width),dtype=uint8)
+        #self.data = zeros((self.height,self.width),dtype=np.uint8)
+        self.ctypes_data = (ctypes.c_int * (1280 * ((8 + 1) / 8 + 0) * 1024))()
+        self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
+        self.mem_buffer.restype = ctypes.py_object
+        
         return None
 
     def CheckForSuccessError(self,return_value):
@@ -289,7 +295,7 @@ class camera(HCAM):
         r = CALL('GetActSeqBuf',self,paqID,ppcMem,ppcMemLast)
         return self.CheckForSuccessError(r)
         
-    def AllocImageMem(self,width=1024,height=768,bitpixel=8):
+    def AllocImageMem(self,width=1280,height=1024,bitpixel=8):
         """
         AllocImageMem() allocates image memory for an image with width,
         width and height, height and colour depth bitspixel. Memory size
@@ -387,7 +393,7 @@ class camera(HCAM):
         r = CALL("FreeImageMem",self,self.image,self.id)
         return self.CheckForSuccessError(r)
 
-    def SetAllocatedImageMem(self,width=1024,height=768,bitpixel=8):
+    def SetAllocatedImageMem(self,width=1280,height=1024,bitpixel=8):
         """
         Set an allocated memory, that was not allocated using 
         AllocImageMem, to the driver so it can be used to store the 
@@ -439,7 +445,11 @@ class camera(HCAM):
         described is pcSource and nID to the area in memory, which 
         pcDest points to.  
         """
-        r = CALL("CopyImageMem",self,self.image,self.id,self.data.ctypes.data)
+        r = CALL("CopyImageMem",self,self.image,self.id,byref(self.ctypes_data)) 
+        buffer = self.mem_buffer(self.ctypes_data, self.width * self.height)
+        self.data = np.frombuffer(buffer, np.dtype('uint8'))
+        self.data = np.reshape(self.data, [self.height,self.width])
+        
         return self.CheckForSuccessError(r)
 
     def GetError(self):
@@ -565,3 +575,28 @@ class camera(HCAM):
                 UINT(IS_EXPOSURE_CMD_SET_EXPOSURE), 
                 byref(TIME), 
                 UINT(nSizeOfParam))
+
+    def InquireImageMem(self):
+        """
+        reads the properties of the allocated image memory.
+        """
+        self.pnX = INT() 
+        self.pnY = INT()
+        self.pnBits  = INT()
+        self.pnPitch = INT()
+        CALL('InquireImageMem', self, self.image, self.id, byref(self.pnX), byref(self.pnY), byref(self.pnBits), byref(self.pnPitch)) 
+
+
+    def GetColorDepth(self):
+        """
+        the current VGA card colour setting and returns the bit depth (pnCol)
+        and the related colour mode (pnColMode). The colour mode can be directl
+        passed to the is_SetColorMode() function. 
+        """
+        self.pnCol = INT() 
+        self.pnColMode = INT()
+        r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
+        return self.CheckForSuccessError(r)
+
+    def isOpened(self):
+        return True

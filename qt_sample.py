@@ -1,11 +1,14 @@
 from PyQt4 import QtGui, QtCore
 import gobject, sys
 import ueye
-import numpy
+import numpy as np
+import ctypes
 
 class Viewer(QtGui.QMainWindow):
     def __init__(self, *args):
         super(Viewer, self).__init__(*args)
+        self.width = 1280
+        self.height = 1024
         self.setup_graphics_view()
         self.setup_camera()
 
@@ -14,17 +17,18 @@ class Viewer(QtGui.QMainWindow):
         self.setCentralWidget(self.graphics)
         self.scene = QtGui.QGraphicsScene()
         self.graphics.setScene(self.scene)
-#        self.pixmap = QtGui.QPixmap()
-#        self.scene.addPixmap(self.pixmap)
+        self.pixmap = QtGui.QGraphicsPixmapItem()
+        self.scene.addItem(self.pixmap)
+        self.graphics.centerOn(self.pixmap)
+
 
     def setup_camera(self):
         self.camera = ueye.camera(1)
-        self.camera.AllocImageMem()
+        self.camera.AllocImageMem(self.width, self.height, bitpixel=8)
         self.camera.SetImageMem()
         self.camera.SetImageSize()
         self.camera.SetColorMode()
         self.camera.CaptureVideo()
-
         self.timer = QtCore.QTimer()
         self.connect(self.timer, QtCore.SIGNAL("timeout()"), self.update_image)
         self.timer.start(1000)
@@ -33,32 +37,15 @@ class Viewer(QtGui.QMainWindow):
         if hasattr(self,"camera_pixmap"):
             self.scene.removeItem(self.camera_pixmap)
         self.camera.CopyImageMem()
-        image = gray2qimage(self.camera.data)
-        self.camera_pixmap = self.scene.addPixmap(QtGui.QPixmap.fromImage(image))
+        im = QtGui.QImage(self.camera.data.flatten(), self.width, self.height, QtGui.QImage.Format_Indexed8)#Format_RGB888)
+        pix = QtGui.QPixmap.fromImage(im)
+        self.pixmap.setPixmap(pix)
         self.timer.start(100)
 
     def closeEvent(self, event):
         self.camera.StopLiveVideo()
         self.camera.FreeImageMem()
         self.camera.ExitCamera()
-
-def gray2qimage(gray):
-    """Convert the 2D numpy array `gray` into a 8-bit QImage with a gray
-    colormap.  The first dimension represents the vertical image axis.
-    http://www.mail-archive.com/pyqt@riverbankcomputing.com/msg17961.html"""
-    if len(gray.shape) != 2:
-        raise ValueError("gray2QImage can only convert 2D arrays")
-
-    gray = numpy.require(gray, numpy.uint8, 'C')
-
-    h, w = gray.shape
-
-    result = QtGui.QImage(gray.data, w, h, QtGui.QImage.Format_Indexed8)
-    result.ndarray = gray
-    for i in range(256):
-        result.setColor(i, QtGui.QColor(i, i, i).rgb())
-    return result
-
 
 
 if __name__ == "__main__":
