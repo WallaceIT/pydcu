@@ -74,7 +74,7 @@ class VideoRecorder(QtCore.QThread):
             self.camera = ueye.camera(1)
             self.camera.AllocImageMem(width=1280,height=1024,bitpixel=8)
             self.camera.SetImageMem()
-            self.camera.SetAOI(x=0, y=0, width=640, height=480)
+            self.camera.SetAOI(x=0, y=0, width=1280, height=1024)
             print self.camera.GetAOI()        
             self.camera.SetFrameRate(self.fps)
             print "framerate: %s " % self.camera.GetFrameRate()
@@ -85,7 +85,7 @@ class VideoRecorder(QtCore.QThread):
             self.camera.set(cv2.cv.CV_CAP_PROP_FPS, self.fps)
 
     def get_frame(self):
-        ret, self.frame = self.camera.read()
+        self.frame = self.camera.read()
         try:
             height, width = self.frame.shape
         except:

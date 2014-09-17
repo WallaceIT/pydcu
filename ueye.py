@@ -22,6 +22,9 @@ import IS
 import ctypes
 import numpy as np
 import pdb 
+import time
+import cv2
+import logging
 
 SUCCESS = 0
 NO_SUCCESS = -1
@@ -44,7 +47,7 @@ if lib is None:
     print 'ueye.dll not found'
         
 libueye = cdll.LoadLibrary(lib)
-
+logger = logging.getLogger()
 
 def CALL(name, *args):
     """
@@ -154,6 +157,7 @@ class pycam:
     def stop_capture(self):
         pass
 
+
 class camera(HCAM):
     def __init__(self,camera_id=0):
         HCAM.__init__(self,0)
@@ -167,7 +171,16 @@ class camera(HCAM):
         self.ctypes_data = (ctypes.c_int * (1280 * ((8 + 1) / 8 + 0) * 1024))()
         self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
         self.mem_buffer.restype = ctypes.py_object
-        
+        self.sizes = self.enum_sizes()
+        self.sizes_menu = dict(zip([str(w)+"x"+str(h) for w,h in self.sizes], range(len(self.sizes))))
+        self.rates = self.enum_rates()
+        self.rates_menu = dict(zip([str(float(d)/n) for n,d in self.rates], range(len(self.rates))))
+        fps = self.rates[3]
+        try:
+            self.current_rate_idx = self.rates.index(fps)
+        except ValueError:
+            logger.warning("Buggy Video Camera: Not all available rates are exposed.")
+            self.current_rate_idx = 0
         return None
 
     def CheckForSuccessError(self,return_value):
@@ -623,7 +636,7 @@ class camera(HCAM):
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
 
-    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=100, y=100, width=640, height=480):
+    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1280, height=1024):
         """
         With is_SetAOI() the size and position of an AOI can be set with one command call. Possible
         AOI are:
@@ -647,12 +660,20 @@ class camera(HCAM):
         pWidth -- Width of the AOI
         pHeight -- Height of the AOI
         """
+        logger.info("orig AOI vals: %s, %s, %s, %s" % (x, y, width, height))
+        x = int(x/4) * 4
+        y = int(y/4) * 4
+        width = int(width/4) * 4
+        height = int(height/4) * 4
         xPos_c = ctypes.c_int(x)
         yPos_c = ctypes.c_int(y)
         width_c = ctypes.c_int(width)
         height_c = ctypes.c_int(height)
         isType_c = ctypes.c_int(isType)
+        logger.info("rounded AOI vals: %s, %s, %s, %s" % (x, y, width, height))
         r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
+        self.roi = [0, 0, height, width]
+        self.t_roi = [y, x, y+height, x+width]
         if r == 0:
             return([xPos_c.value, yPos_c.value, width_c.value, height_c.value])
         else:
@@ -660,6 +681,64 @@ class camera(HCAM):
 
     def GetAOI(self, isType=IS.GET_IMAGE_AOI, x=0, y=0, width=0, height=0):
         return self.SetAOI(isType, x, y, width, height)
+
+    def SetAutoParameter(self, isType=IS.SET_ENABLE_AUTO_SHUTTER, pval1=1, pval2=0):
+        ''' controls Auto Gain, Auto Shutter, Auto Framerate and Auto Whitebalance 
+        functionality. Purpose of the auto functions is it to control the camera 
+        image in its average'''
+        pval1_c = ctypes.c_double(pval1)
+        pval2_c = ctypes.c_double(pval2)
+        isType_c = ctypes.c_int(isType)
+        r = CALL('SetAutoParameter', self, isType_c, byref(pval1_c), byref(pval2_c))
+        pval1 = pval1_c.value
+        pval2 = pval2_c.value
+        ret = dict()
+        ret['status'] = r
+        ret['pval1'] = pval1
+        ret['pval2'] = pval2
+        return ret
+
+    def enableAutoGain(self):
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
+        return r
+
+    def enableAutoExposure(self):
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_SHUTTER, pval1=1, pval2=0)
+        return r
+
+    def disableAutoGain(self):
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_GAIN, pval1=0, pval2=0)
+        return r
+
+    def disableAutoExposure(self):
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_SHUTTER, pval1=0, pval2=0)
+        return r
+
+    def enableAutoWhitebalance(self):
+        ''' not supported yet by the driver '''
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_WHITEBALANCE, pval1=1, pval2=0)
+        return r
+
+    def getAutoGain(self):
+        r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
+        return bool(r['pval1'])
+
+
+    def getAutoExposure(self):
+        r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_SHUTTER, pval1=1, pval2=0)
+        return bool(r['pval1'])
+
+    def setAutoGain(self, enable):
+        if enable:
+            return self.enableAutoGain()
+        else:
+            return self.disableAutoGain()
+
+    def setAutoExposure(self, enable):
+        if enable:
+            return self.enableAutoExposure()
+        else:
+            return self.disableAutoExposure()
 
     def SetFrameRate(self, fps=30):
         fps_c = ctypes.c_double(fps)
@@ -671,6 +750,37 @@ class camera(HCAM):
     def GetFrameRate(self):
         return self.SetFrameRate(fps=IS.GET_FRAMERATE)
 
+    def set_rate(self, fps):
+        try:
+            self.current_rate_idx = self.rates.index(fps)
+        except ValueError:
+            logger.warning("Buggy Video Camera: Not all available rates are exposed.")
+            self.current_rate_idx = 0
+        logger.info("new frame rate " + str(float(fps[1])/fps[0]))
+        return self.SetFrameRate(fps[1]/fps[0])
+
+    def get_rate(self):
+        return self.GetFrameRate()
+
+    def get_size(self):
+        return self.GetAOI()
+
+    def set_size(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1280, height=1024):
+        self.SetAOI()
+        time.sleep(.2)
+        self.CopyImageMem()
+        self.init_frame = self.data.copy()
+        r = self.SetAOI(isType=IS.SET_IMAGE_AOI, x=x, y=y, width=width, height=height)
+        #self.enableAutoGain()
+        #r = self.enableAutoExposure()
+        return r
+        
+    def cleanup(self):
+        self.StopLiveVideo()
+        self.FreeImageMem()
+        self.ExitCamera()
+
+
     def isOpened(self):
         return True
 
@@ -680,4 +790,33 @@ class camera(HCAM):
         return most recent frame
         """
         self.CopyImageMem()
-        return 0, self.data
+        now = time.time()
+        frame = self.init_frame.copy()
+        frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
+
+        frame = cv2.cvtColor( frame, cv2.COLOR_GRAY2RGB )
+        return Frame(now, frame) #self.init_frame)
+
+    def enum_sizes(self):
+        return([(1280,1024)])
+
+    def enum_rates(self):
+        rates = []
+        for n in [1000.0/5, 1000.0/10, 1000.0/25, 1000.0/30, 1000.0/60,1000.0/100,1000.0/200]:
+            rates.append((n,1000))
+        return rates
+
+    def set_rate_idx(self,rate_id):
+        new_rate = self.rates[rate_id]
+        r = self.set_rate(new_rate)
+        return r
+
+
+class Frame(object):
+    """docstring for Frame"""
+    def __init__(self, timestamp, img, compressed_img=None, compressed_pix_fmt=None):
+        self.timestamp = timestamp
+        self.img = img
+        self.compressed_img = compressed_img
+        self.compressed_pix_fmt = compressed_pix_fmt
+
