@@ -889,6 +889,25 @@ class camera(HCAM):
         r = CALL('SetHardwareGain', self, IS.GET_MASTER_GAIN)
         return r
 
+
+    def set_brightness(self, bright):
+        ''' set brightness from 0 - 200%'''
+        bright = max(0,bright)
+        bright = min(255, bright)
+        bright = ctypes.c_int(bright)
+        r = CALL('SetBrightness', self, bright)
+        if r is SUCCESS:
+            return True
+        else:
+            return False
+
+    def get_brightness(self):
+        r = CALL('SetBrightness', self, IS.GET_BRIGHTNESS)
+        return r
+
+
+
+
 class Frame(object):
     """docstring for Frame"""
     def __init__(self, timestamp, img, compressed_img=None, compressed_pix_fmt=None):

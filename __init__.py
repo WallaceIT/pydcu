@@ -163,6 +163,21 @@ class Controls(dict):
         control_order += 1
 
         control = {}
+        control_name = 'brightness'
+        control['value'] = 100
+        control['default'] = 100
+        control["type"] = 'range'
+        control["name"] = control_name
+        control['atb_name'] = control_name
+        control["src"] = device_number
+        control["order"] = control_order
+        control['step'] = 1
+        control['min'] = 0
+        control['max'] = 255
+        controls[control_name] = control
+        control_order += 1
+
+        control = {}
         control_name = 'auto gain'
         control['value'] = False
         control['default'] = False
@@ -254,6 +269,7 @@ class Camera_Capture(object):
         self.bar.add_var('exposure', vtype=ctypes.c_float, getter = self.capture.get_exposure_time, setter=self.capture.set_exposure_time)
         self.bar.add_var('gain', vtype = ctypes.c_int, getter = self.capture.get_hardware_gain, setter=self.capture.set_hardware_gain)
         self.bar.add_var('contrast', vtype = ctypes.c_int, getter = self.capture.get_contrast, setter=self.capture.set_contrast)
+        self.bar.add_var('brightness', vtype = ctypes.c_int, getter = self.capture.get_brightness, setter=self.capture.set_brightness)
         self.bar.add_var('auto gain', vtype = atb.TW_TYPE_BOOL8, getter = self.capture.getAutoGain, setter=self.capture.setAutoGain )
         self.bar.add_var('auto exposure', vtype = atb.TW_TYPE_BOOL8, getter = self.capture.getAutoExposure, setter=self.capture.setAutoExposure )
 
@@ -288,8 +304,8 @@ class Camera_Capture(object):
         #         # the controll should always be off. we set it to 0 on init (see above)
         #         self.bar.define(definition='readonly=1',varname=control.name)
 
-        self.bar.add_button("refresh",self.controls.update_from_device)
-        self.bar.add_button("load defaults",self.controls.load_defaults)
+        #self.bar.add_button("refresh",self.controls.update_from_device)
+        #self.bar.add_button("load defaults",self.controls.load_defaults)
 
         return size
 
