@@ -811,6 +811,83 @@ class camera(HCAM):
         r = self.set_rate(new_rate)
         return r
 
+    def set_exposure_time(self, exp):
+        ''' set exposure time of camera '''
+        new_exp = ctypes.c_double(0)
+        exp = ctypes.c_double(exp)
+        r = CALL('SetExposureTime', self, exp, byref(new_exp))
+        if r is SUCCESS:
+            return new_exp.value
+        else:
+            return -1
+
+    def set_exposure_time(self, exp):
+        ''' set exposure time of camera '''
+        new_exp = ctypes.c_double(0)
+        exp = ctypes.c_double(exp)
+        r = CALL('SetExposureTime', self, exp, byref(new_exp))
+        if r is SUCCESS:
+            return new_exp.value
+        else:
+            return 0 
+
+    def get_exposure_time(self):
+        ''' set exposure time of camera '''
+        new_exp = ctypes.c_double(0)
+        exp = ctypes.c_double(IS.GET_EXPOSURE_TIME)
+        r = CALL('SetExposureTime', self, exp, byref(new_exp))
+        if r is SUCCESS:
+            return new_exp.value
+        else:
+            return 0 
+            
+
+
+    def set_contrast(self, cont):
+        ''' set contrast from 0 - 200%'''
+        cont = max(0,cont)
+        cont = min(511, cont)
+        cont = ctypes.c_int(cont)
+        r = CALL('SetContrast', self, cont)
+        if r is SUCCESS:
+            return True
+        else:
+            return False
+
+    def get_contrast(self):
+        r = CALL('SetContrast', self, IS.GET_CONTRAST)
+        return r
+
+    def get_gain_boost(self, mode=IS.GET_GAINBOOST):
+        r = CALL('SetGainBoost', self, mode)
+        if r == IS.SET_GAINBOOST_ON:
+            return True
+        else:
+            return False
+
+
+    def set_gain_boost(self, enable=True):
+        if enable:
+            r = CALL('SetGainBoost', self, IS.SET_GAINBOOST_ON)
+        else:
+            r = CALL('SetGainBoost', self, IS.SET_GAINBOOST_OFF)
+        if r == IS.SET_GAINBOOST_ON:
+            return True
+        else:
+            return False
+    
+    def set_hardware_gain(self, nMaster):
+        nMaster = ctypes.c_int(nMaster)
+        ignore_me = ctypes.c_double(IS.IGNORE_PARAMETER)
+        r = CALL('SetHardwareGain', self, nMaster, ignore_me, ignore_me, ignore_me)
+        if r is SUCCESS:
+            return True
+        else:
+            return False
+
+    def get_hardware_gain(self):
+        r = CALL('SetHardwareGain', self, IS.GET_MASTER_GAIN)
+        return r
 
 class Frame(object):
     """docstring for Frame"""
