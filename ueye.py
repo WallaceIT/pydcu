@@ -636,6 +636,7 @@ class camera(HCAM):
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
 
+
     def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1280, height=1024):
         """
         With is_SetAOI() the size and position of an AOI can be set with one command call. Possible
@@ -754,17 +755,29 @@ class camera(HCAM):
     def GetFrameRate(self):
         return self.SetFrameRate(fps=IS.GET_FRAMERATE)
 
+    def enum_rates(self):
+        rates = []
+        for n in [1000.0/25, 1000.0/30, 1000.0/60,1000.0/100,1000.0/200]:
+            rates.append((n,1000.0))
+        return rates
+
     def set_rate(self, fps):
         try:
             self.current_rate_idx = self.rates.index(fps)
         except ValueError:
             logger.warning("Buggy Video Camera: Not all available rates are exposed.")
             self.current_rate_idx = 0
-        logger.info("new frame rate " + str(float(fps[1])/fps[0]))
+        logger.info("new frame rate " + str(fps[1]/fps[0]))
         return self.SetFrameRate(fps[1]/fps[0])
 
     def get_rate(self):
         return self.GetFrameRate()
+
+
+    def set_rate_idx(self,rate_id):
+        new_rate = self.rates[rate_id]
+        r = self.set_rate(new_rate)
+        return r
 
     def get_size(self):
         return self.GetAOI()
@@ -777,6 +790,8 @@ class camera(HCAM):
         r = self.SetAOI(isType=IS.SET_IMAGE_AOI, x=x, y=y, width=width, height=height)
         #self.enableAutoGain()
         #r = self.enableAutoExposure()
+        self.set_rate_idx(self.current_rate_idx)
+        #self.SetFrameRate(self.GetFrameRate())
         return r
         
     def cleanup(self):
@@ -816,16 +831,6 @@ class camera(HCAM):
     def enum_sizes(self):
         return([(1280,1024)])
 
-    def enum_rates(self):
-        rates = []
-        for n in [1000.0/5, 1000.0/10, 1000.0/25, 1000.0/30, 1000.0/60,1000.0/100,1000.0/200]:
-            rates.append((n,1000))
-        return rates
-
-    def set_rate_idx(self,rate_id):
-        new_rate = self.rates[rate_id]
-        r = self.set_rate(new_rate)
-        return r
 
     def set_exposure_time(self, exp):
         ''' set exposure time of camera '''

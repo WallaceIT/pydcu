@@ -271,6 +271,8 @@ class Camera_Capture(object):
         self.bar.add_var('brightness', vtype = ctypes.c_int, getter = self.capture.get_brightness, setter=self.capture.set_brightness)
         self.bar.add_var('auto gain', vtype = atb.TW_TYPE_BOOL8, getter = self.capture.getAutoGain, setter=self.capture.setAutoGain )
         self.bar.add_var('auto exposure', vtype = atb.TW_TYPE_BOOL8, getter = self.capture.getAutoExposure, setter=self.capture.setAutoExposure )
+        self.capture.set_rate_idx(self.capture.current_rate_idx)
+        # self.capture.SetFrameRate(30)
         # sorted_controls = [c for c in self.controls.itervalues()]
         # sorted_controls.sort(key=lambda c: c.order)
         # for control in sorted_controls:
