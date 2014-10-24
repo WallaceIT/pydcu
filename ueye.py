@@ -820,8 +820,8 @@ class camera(HCAM):
         return most recent frame
         """
         self.waitForNewFrame()
-        self.CopyImageMem()
         now = time.time()
+        self.CopyImageMem()
         frame = self.init_frame.copy()
         frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
 
