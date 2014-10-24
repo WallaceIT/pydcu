@@ -788,11 +788,23 @@ class camera(HCAM):
     def isOpened(self):
         return True
 
+    def enableEvent(self, event=IS.SET_EVENT_FRAME):
+        which = ctypes.c_int(event)
+        r = CALL('EnableEvent', self, which)
+
+    def waitForNewFrame(self):
+        ''' wait until new frame is available '''
+        which = ctypes.c_int(IS.SET_EVENT_FRAME)
+        timeout = ctypes.c_int(1000)
+        r = CALL('WaitEvent', self, which, timeout)
+        return True
+
     def read(self):
         """ 
         wrapper to make analogous to opencv call
         return most recent frame
         """
+        self.waitForNewFrame()
         self.CopyImageMem()
         now = time.time()
         frame = self.init_frame.copy()
