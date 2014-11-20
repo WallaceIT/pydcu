@@ -226,6 +226,7 @@ class Camera_Capture(object):
         self.capture.SetColorMode()
         self.capture.CaptureVideo()
         self.capture.CopyImageMem()
+        self.capture.disableAutoWhitebalance()
         self.capture.init_frame = self.capture.data
         self.get_frame = self.capture.read
         self.get_now = time.time() 

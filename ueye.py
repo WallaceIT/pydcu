@@ -674,9 +674,9 @@ class camera(HCAM):
         logger.info("rounded AOI vals: %s, %s, %s, %s" % (x, y, width, height))
         r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         isType_c = ctypes.c_int(IS.SET_AUTO_BRIGHT_AOI)
-        r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))        
-        isType_c = ctypes.c_int(IS.SET_AUTO_WB_AOI)
-        r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
+        # r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))        
+        # isType_c = ctypes.c_int(IS.SET_AUTO_WB_AOI)
+        #r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         self.roi = [0, 0, height, width]
         self.t_roi = [y, x, y+height, x+width]
         if r == 0:
@@ -722,6 +722,11 @@ class camera(HCAM):
     def enableAutoWhitebalance(self):
         ''' not supported yet by the driver '''
         r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_WHITEBALANCE, pval1=1, pval2=0)
+        return r
+
+    def disableAutoWhitebalance(self):
+        ''' not supported yet by the driver '''
+        r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_WHITEBALANCE, pval1=0, pval2=0)
         return r
 
     def getAutoGain(self):
