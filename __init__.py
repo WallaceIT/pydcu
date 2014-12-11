@@ -104,8 +104,8 @@ class Controls(dict):
 
         control = {}
         control_name = 'auto exposure'
-        control['value'] = False
-        control['default'] = False
+        control['value'] = True
+        control['default'] = True
         control["type"] = 'bool'
         control["name"] = control_name
         control['atb_name'] = control_name
@@ -134,8 +134,8 @@ class Controls(dict):
 
         control = {}
         control_name = 'gain'
-        control['value'] = 0
-        control['default'] = 0
+        control['value'] = 98
+        control['default'] = 98
         control["type"] = 'range'
         control["name"] = control_name
         control['atb_name'] = control_name
