@@ -175,7 +175,7 @@ class camera(HCAM):
         self.sizes_menu = dict(zip([str(w)+"x"+str(h) for w,h in self.sizes], range(len(self.sizes))))
         self.rates = self.enum_rates()
         self.rates_menu = dict(zip([str(float(d)/n) for n,d in self.rates], range(len(self.rates))))
-        fps = self.rates[3]
+        fps = self.rates[2]
         try:
             self.current_rate_idx = self.rates.index(fps)
         except ValueError:
@@ -750,6 +750,13 @@ class camera(HCAM):
         else:
             return self.disableAutoExposure()
 
+    def toggleAutoParameters(self):
+        r = self.enableAutoGain()
+        r = self.enableAutoExposure()
+        time.sleep(.2)
+        r = self.disableAutoGain()
+        r = self.disableAutoExposure()
+
     def SetFrameRate(self, fps=30):
         fps_c = ctypes.c_double(fps)
         new_fps_c = ctypes.c_double(0)
@@ -793,10 +800,7 @@ class camera(HCAM):
         self.CopyImageMem()
         self.init_frame = self.data.copy()
         r = self.SetAOI(isType=IS.SET_IMAGE_AOI, x=x, y=y, width=width, height=height)
-        #self.enableAutoGain()
-        #r = self.enableAutoExposure()
-        self.set_rate_idx(self.current_rate_idx)
-        #self.SetFrameRate(self.GetFrameRate())
+        self.toggleAutoParameters()
         return r
         
     def cleanup(self):
@@ -871,6 +875,7 @@ class camera(HCAM):
 
     def set_contrast(self, cont):
         ''' set contrast from 0 - 200%'''
+        cont = int(cont)
         cont = max(0,cont)
         cont = min(511, cont)
         cont = ctypes.c_int(cont)

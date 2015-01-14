@@ -158,7 +158,7 @@ class Controls(dict):
         control["order"] = control_order
         control['step'] = 5
         control['min'] = 0
-        control['max'] = 200
+        control['max'] = 511
         controls[control_name] = control
         control_order += 1
 
@@ -229,7 +229,7 @@ class Camera_Capture(object):
         self.capture.disableAutoWhitebalance()
         self.capture.init_frame = self.capture.data
         self.get_frame = self.capture.read
-        self.get_now = time.time() 
+        self.get_now = time.time()
 #        self.run(pos=(220,10))
 #        self.run()
 
