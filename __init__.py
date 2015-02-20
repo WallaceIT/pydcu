@@ -219,14 +219,15 @@ class Camera_Capture(object):
         #give camera some time to change settings.
         self.capture = ueye.camera(1)
         self.capture.enableEvent()
+        self.capture.LoadParameters()
         self.capture.AllocImageMem(width=size[0],height=size[1],bitpixel=8)
         self.capture.SetImageMem()
-        self.capture.SetAOI(x=0, y=0, width=size[0], height=size[1])
-        self.capture.SetFrameRate(fps)
-        self.capture.SetColorMode()
+#        self.capture.SetAOI(x=0, y=0, width=size[0], height=size[1])
+#        self.capture.SetFrameRate(fps)
+#        self.capture.SetColorMode()
         self.capture.CaptureVideo()
         self.capture.CopyImageMem()
-        self.capture.disableAutoWhitebalance()
+#        self.capture.disableAutoWhitebalance()
         self.capture.init_frame = self.capture.data
         self.get_frame = self.capture.read
         self.get_now = time.time()

@@ -14,6 +14,8 @@
  #    along with pydcu.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
+import os.path
+from os.path import expanduser # to determine user home directory
 import sys
 import textwrap
 from numpy import zeros,uint8,ctypeslib
@@ -164,11 +166,11 @@ class camera(HCAM):
         r = CALL('InitCamera',byref(self),HWND(0))
         if r is not SUCCESS:
             raise Exception("Error %d"%r)
-        self.width = 1280
-        self.height = 1024        
+        self.width = 260
+        self.height = 216        
         self.seq = 0
         #self.data = zeros((self.height,self.width),dtype=np.uint8)
-        self.ctypes_data = (ctypes.c_int * (1280 * ((8 + 1) / 8 + 0) * 1024))()
+        self.ctypes_data = (ctypes.c_int * (260 * ((8 + 1) / 8 + 0) * 216))()
         self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
         self.mem_buffer.restype = ctypes.py_object
         self.sizes = self.enum_sizes()
@@ -308,7 +310,7 @@ class camera(HCAM):
         r = CALL('GetActSeqBuf',self,paqID,ppcMem,ppcMemLast)
         return self.CheckForSuccessError(r)
         
-    def AllocImageMem(self,width=1280,height=1024,bitpixel=8):
+    def AllocImageMem(self,width=260,height=216,bitpixel=8):
         """
         AllocImageMem() allocates image memory for an image with width,
         width and height, height and colour depth bitspixel. Memory size
@@ -431,7 +433,7 @@ class camera(HCAM):
         r = CALL("FreeImageMem",self,self.image,self.id)
         return self.CheckForSuccessError(r)
 
-    def SetAllocatedImageMem(self,width=1280,height=1024,bitpixel=8):
+    def SetAllocatedImageMem(self,width=260,height=216,bitpixel=8):
         """
         Set an allocated memory, that was not allocated using 
         AllocImageMem, to the driver so it can be used to store the 
@@ -545,6 +547,20 @@ class camera(HCAM):
         r = CALL("CaptureVideo",self,INT(wait))
         return self.CheckForSuccessError(r)
         
+
+    def LoadParameters(self):
+        """ Load Parameter File saved previously with ueye demo """
+        home_dir = expanduser("~")
+        parameter_file = home_dir + '/UI154xLE-M_conf.ini'
+        if os.path.isfile(parameter_file): 
+            print "Loading Paramters for Camera"
+            r = CALL("LoadParameters",self,c_char_p(parameter_file))
+            print r
+        else:
+            print "File not Found: %s" % parameter_file
+            return False
+        return self.CheckForSuccessError(r)
+
     def SetColorMode(self,color_mode=IS.SET_CM_Y8):
         r = CALL("SetColorMode",self,INT(color_mode))
         return self.CheckForNoSuccessError(r)
@@ -637,7 +653,7 @@ class camera(HCAM):
         return self.CheckForSuccessError(r)
 
 
-    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1280, height=1024):
+    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=260, height=216):
         """
         With is_SetAOI() the size and position of an AOI can be set with one command call. Possible
         AOI are:
@@ -794,7 +810,7 @@ class camera(HCAM):
     def get_size(self):
         return self.GetAOI()
 
-    def set_size(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1280, height=1024):
+    def set_size(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=260, height=216):
         self.SetAOI()
         time.sleep(.2)
         self.CopyImageMem()
@@ -831,25 +847,25 @@ class camera(HCAM):
         self.waitForNewFrame()
         now = time.time()
         self.CopyImageMem()
-        frame = self.init_frame.copy()
-        frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
-
-        frame = cv2.cvtColor( frame, cv2.COLOR_GRAY2RGB )
+        # frame = self.init_frame.copy()
+        # frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
+        
+        frame = cv2.cvtColor( self.data, cv2.COLOR_GRAY2RGB )
         return Frame(now, frame) #self.init_frame)
 
     def enum_sizes(self):
-        return([(1280,1024)])
+        return([(260,216)])
 
 
-    def set_exposure_time(self, exp):
-        ''' set exposure time of camera '''
-        new_exp = ctypes.c_double(0)
-        exp = ctypes.c_double(exp)
-        r = CALL('SetExposureTime', self, exp, byref(new_exp))
-        if r is SUCCESS:
-            return new_exp.value
-        else:
-            return -1
+    # def set_exposure_time(self, exp):
+    #     ''' set exposure time of camera '''
+    #     new_exp = ctypes.c_double(0)
+    #     exp = ctypes.c_double(exp)
+    #     r = CALL('SetExposureTime', self, exp, byref(new_exp))
+    #     if r is SUCCESS:
+    #         return new_exp.value
+    #     else:
+    #         return -1
 
     def set_exposure_time(self, exp):
         ''' set exposure time of camera '''
