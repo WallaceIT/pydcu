@@ -23,7 +23,7 @@ from ctypes import byref,c_int,create_string_buffer,c_char_p,cdll,util,c_void_p
 import IS
 import ctypes
 import numpy as np
-import pdb 
+import pdb
 import time
 import cv2
 import logging
@@ -31,23 +31,23 @@ import logging
 SUCCESS = 0
 NO_SUCCESS = -1
 INVALID_HANDLER = 1
-HANDLE = c_void_p            
+HANDLE = c_void_p
 HCAM = HANDLE
-HWND = c_void_p            
+HWND = c_void_p
 INT = c_int
 UINT = ctypes.c_uint
 DOUBLE = ctypes.c_double
 
 if os.name=='nt':
-    libname = 'ueye'
-    include_ueye_h = os.environ['PROGRAMFILES']+'\\Thorlabs DCU camera\\Develop\\Include\\ueye.h'
+    libname = 'ueye_api'
+    include_ueye_h = os.environ['PROGRAMFILES']+'\\IDS\\uEye\\Develop\\include\\uEye.h'
 if os.name=='posix':
     libname = 'ueye_api'
     include_ueye_h = "/usr/include/ueye.h"
 lib = util.find_library(libname)
 if lib is None:
-    print 'ueye.dll not found'
-        
+    print('ueye.dll not found')
+
 libueye = cdll.LoadLibrary(lib)
 logger = logging.getLogger()
 
@@ -58,20 +58,20 @@ def CALL(name, *args):
     funcname = 'is_' + name
     func = getattr(libueye, funcname)
     new_args = []
-    for a in args:        
+    for a in args:
         if isinstance (a, unicode):
-            print name, 'argument',a, 'is unicode'
+            print(name, 'argument',a, 'is unicode')
             new_args.append (str (a))
         else:
             new_args.append (a)
-    return func(*new_args) 
+    return func(*new_args)
 
 def pair_gen(getXconst,getYconst):
     class pair(list):
         def __init__(self,args,camera):
             list.__init__(self,args)
             self.cam = camera
-        
+
         @property
         def x(self):
             return self[0]
@@ -91,7 +91,7 @@ def pair_gen(getXconst,getYconst):
             self[1] = value
             x = self.cam.SetImagePos(getXconst)
             self.cam.SetImagePos(x,value)
-    
+
     return pair
 
 pos_pair = pair_gen(IS.GET_IMAGE_POS_X,IS.GET_IMAGE_POS_Y)
@@ -124,7 +124,7 @@ class image(object):
         y =  self.cam.SetImagePos(IS.GET_IMAGE_POS_Y)
         r = pos_pair([x,y],self.cam)
         return r
-    
+
     @position.setter
     def position(self,value):
         if len(value) != 2:
@@ -135,7 +135,7 @@ class image(object):
         if y is None:
             y = self.cam.SetImagePos(IS.GET_IMAGE_POS_Y)
         self.cam.SetImagePos(x,y)
-    
+
 
 class pycam:
     def __init__(self,camera_id = 0):
@@ -166,11 +166,11 @@ class camera(HCAM):
         r = CALL('InitCamera',byref(self),HWND(0))
         if r is not SUCCESS:
             raise Exception("Error %d"%r)
-        self.width = 260
-        self.height = 216        
+        self.width = 1024
+        self.height = 768
         self.seq = 0
-        #self.data = zeros((self.height,self.width),dtype=np.uint8)
-        self.ctypes_data = (ctypes.c_int * (260 * ((8 + 1) / 8 + 0) * 216))()
+        self.data = zeros((self.height,self.width),dtype=np.uint8)
+        self.ctypes_data = (ctypes.c_int * (self.width * ((8 + 1) / 8 + 0) * self.height))()
         self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
         self.mem_buffer.restype = ctypes.py_object
         self.sizes = self.enum_sizes()
@@ -201,13 +201,13 @@ class camera(HCAM):
         """
         AddToSequence() inserts image memory into the image memory list,
         which is to be used for ring buffering. The image memory has to
-        be allocated with AllocImageMem(). All image memory which is 
+        be allocated with AllocImageMem(). All image memory which is
         used for ring buffering must have been allocated the same colour
         depth (i.e. bits per pixel). The number of image memories for a
-        sequence (nID) is limited to the integer value range.  
+        sequence (nID) is limited to the integer value range.
         """
         self.seq += 1
-        r = CALL('AddToSequence',self,self.image,self.id) 
+        r = CALL('AddToSequence',self,self.image,self.id)
         return self.CheckForSuccessError(r)
 
     def ClearSequence(self):
@@ -215,20 +215,20 @@ class camera(HCAM):
         ClearSequence() deletes all image memory from the sequence list
         that was inserted with AddToSequence(). After ClearSequence() no
         more image memory is active. To make a certain part of the image
-        memory active, SetImageMem() and SetImageSize() have to be 
+        memory active, SetImageMem() and SetImageSize() have to be
         executed.
         Not tested!
         """
         r = CALL('ClearSequence',self)
         return self.CheckForSuccessError(r)
-            
+
     def LockSeqBuf(self,number):
         """
         LockSeqBuf() can be used to disable the overwriting of the image
         memory with new image data. And thus it is possible to prevent
-        images which are required for further processing from being 
+        images which are required for further processing from being
         overwritten. Full access to the image memory is still available.
-        Only one image memory can be disabled at the same time. To 
+        Only one image memory can be disabled at the same time. To
         access the image memory use function UnlockSeqBuf().
         Not tested!
         """
@@ -238,7 +238,7 @@ class camera(HCAM):
     def UnlockSeqBuf(self,number):
         """
         With UnlockSeqBuf() image acquisition is allowed in a previously
-        locked image memory. The image memory is put to the previous 
+        locked image memory. The image memory is put to the previous
         position in the sequence list.
         """
         r = CALL('UnlockSeqBuf',self,INT(number),self.image)
@@ -247,7 +247,7 @@ class camera(HCAM):
     def GetLastMemorySequence(self):
         """
         The function GetLastMemorySequence() returns the ID of the last
-        recorded sequence in the memory board. This parameter can then 
+        recorded sequence in the memory board. This parameter can then
         be used in combination with the function TransferImage() to read
         images out of the camera memory.
         No memory board to test this, Not tested!
@@ -264,7 +264,7 @@ class camera(HCAM):
         """
         CALL('TransferImage',self,INT(),INT(),INT(),INT())
 
-    def TransferMemorySequence(): 
+    def TransferMemorySequence():
         """
         Experiment to find out how it works
         TransferMemorySequence(HIDS hf, INT seqID, INT StartNr, INT nCount, INT nSeqPos);
@@ -275,12 +275,12 @@ class camera(HCAM):
 
     def GetMemorySequenceWindow(self,id):
         """
-        The function GetMemorySequenceWindow() can be used to check the 
-        window size of a specified memory board sequence. The assigned 
+        The function GetMemorySequenceWindow() can be used to check the
+        window size of a specified memory board sequence. The assigned
         sequence ID is required as a parameter.
         Not tested!
         """
-        top    = INT() 
+        top    = INT()
         left   = INT()
         right  = INT()
         bottom = INT()
@@ -290,14 +290,14 @@ class camera(HCAM):
     def GetActSeqBuf(self):
         """
         With GetActSeqBuf() the image memory in which image acquisition
-        (ppcMem) is currently taking place and the image memory which 
+        (ppcMem) is currently taking place and the image memory which
         was last used for image acquisition (ppcMemLast) can be deter-
-        mined. This function is only available when the ring buffer is 
-        active. If image acquisition is started for a ring buffer, 
-        GetActSeqBuf returns 0 in pnNum as long as data is acquired to 
+        mined. This function is only available when the ring buffer is
+        active. If image acquisition is started for a ring buffer,
+        GetActSeqBuf returns 0 in pnNum as long as data is acquired to
         the first image memory of the sequence. And thus pnNum receives
         the number of the sequence image memory, in which image acqui-
-        sition is currently taking place. The number is not the ID of 
+        sition is currently taking place. The number is not the ID of
         the image memory which is provided from AllocImageMem(), but the
         running number in the sequence as defined in AddToSequence().
         """
@@ -309,7 +309,7 @@ class camera(HCAM):
         ppcMemLast = byref(pcMemLast)
         r = CALL('GetActSeqBuf',self,paqID,ppcMem,ppcMemLast)
         return self.CheckForSuccessError(r)
-        
+
     def AllocImageMem(self,width=260,height=216,bitpixel=8):
         """
         AllocImageMem() allocates image memory for an image with width,
@@ -324,23 +324,23 @@ class camera(HCAM):
         line     = width * [(bitspixel + 1) / 8]
         lineinc = line + adjust.
         adjust  = 0 when line without rest is divisible by 4
-        adjust     = 4 - rest(line / 4) 
+        adjust     = 4 - rest(line / 4)
                 when line without rest is not divisible by 4
 
 
         The line increment can be read with the GetImgMemPitch() func-
-        tion. The start address in the image memory is returned with 
+        tion. The start address in the image memory is returned with
         ppcImgMem. pid contains an identification number of the alloc-
-        ated memory. A newly activated memory location is not directly 
+        ated memory. A newly activated memory location is not directly
         activated. In other words, images are not directly digitized to
         this new memory location. Before this can happen, the new memory
-        location has to be activated with SetImageMem(). After 
-        SetImageMem() an SetImageSize() must follow so that the image 
-        conditions can be transferred to the newly activated memory 
-        location. The returned pointer has to be saved and may be 
-        reused, as it is required for all further ImageMem functions! 
-        The freeing of the memory is achieved with FreeImageMem(). In 
-        the DirectDraw modes, the allocation of an image memory is not 
+        location has to be activated with SetImageMem(). After
+        SetImageMem() an SetImageSize() must follow so that the image
+        conditions can be transferred to the newly activated memory
+        location. The returned pointer has to be saved and may be
+        reused, as it is required for all further ImageMem functions!
+        The freeing of the memory is achieved with FreeImageMem(). In
+        the DirectDraw modes, the allocation of an image memory is not
         required!
         """
         self.image = c_char_p()
@@ -355,9 +355,9 @@ class camera(HCAM):
 
     def GetNumberOfMemoryImages(self):
         """
-        The function GetNumberOfMemoryImages() returns the number of 
-        valid images that are currently located in the camera memory 
-        within the specified sequence ID. This number can differ from 
+        The function GetNumberOfMemoryImages() returns the number of
+        valid images that are currently located in the camera memory
+        within the specified sequence ID. This number can differ from
         the originally recorded number of images because of overwriting.
         Not tested!
 
@@ -365,18 +365,18 @@ class camera(HCAM):
         number = INT()
         r = CALL('GetNumberOfMemoryImages',self,INT(self.seq),byref(number))
         return self.CheckForSuccessError(r)
-    
+
     def SetImageMem(self):
         """
         SetImageMem() sets the allocated image memory to active memory.
-        Only an active image memory can receive image data. After 
+        Only an active image memory can receive image data. After
         calling SetImageMem() function SetImageSize() must follow to set
         the image size of the active memory. A pointer from function
         AllocImgMem() has to be given to parameter pcImgMem.
         """
         r = CALL("SetImageMem",self,self.image,self.id)
         return self.CheckForSuccessError(r)
-        
+
     def SetImageSize(self,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
         """
         Sets the image size.
@@ -421,12 +421,12 @@ class camera(HCAM):
 
         #else:
         #    return self.CheckForSuccessError(r)
-        
+
 
     def FreeImageMem (self):
         """
         FreeImageMem() deallocates previously allocated image memory.i
-        For pcImgMem one of the pointers from AllocImgMem() has to be 
+        For pcImgMem one of the pointers from AllocImgMem() has to be
         used. All other pointers lead to an error message! The repeated
         handing over of the same pointers also leads to an error message
         """
@@ -435,9 +435,9 @@ class camera(HCAM):
 
     def SetAllocatedImageMem(self,width=260,height=216,bitpixel=8):
         """
-        Set an allocated memory, that was not allocated using 
-        AllocImageMem, to the driver so it can be used to store the 
-        image that will be degitized. The allocated memory must be 
+        Set an allocated memory, that was not allocated using
+        AllocImageMem, to the driver so it can be used to store the
+        image that will be degitized. The allocated memory must be
         globally locked.
         (Basically, use this if some non-driver function happens to have
         some memory already allocated, so you don't need to allocate more
@@ -453,14 +453,14 @@ class camera(HCAM):
             self.data.ctypes.data,
             byref(self.id))
         return self.CheckForSuccessError(r)
-        
+
     def GetActiveImageMem(self):
         """
         GetActiveImageMem() returns the pointer to the beginning and the
         ID number of the active memory. If DirectDraw mode is active and
-        image memory has been allocated, this function returns the 
+        image memory has been allocated, this function returns the
         pointer and the ID of the image memory, which was activated with
-        SetImageMem(). However, it should be noted that in DirectDraw 
+        SetImageMem(). However, it should be noted that in DirectDraw
         mode, this memory is not used for digitizing.
         Also see GetImgMem().
         Not tested!
@@ -475,21 +475,21 @@ class camera(HCAM):
         mode).
         """
         CALL('GetImageMem',self,byref(self.image))
-        
+
     def FreezeVideo(self,wait=IS.WAIT):
         CALL("FreezeVideo",self,INT(wait))
-        
+
     def CopyImageMem(self):
         """
         CopyImageMem() copies the contents of the image memory, as
-        described is pcSource and nID to the area in memory, which 
-        pcDest points to.  
+        described is pcSource and nID to the area in memory, which
+        pcDest points to.
         """
-        r = CALL("CopyImageMem",self,self.image,self.id,byref(self.ctypes_data)) 
+        r = CALL("CopyImageMem",self,self.image,self.id,byref(self.ctypes_data))
         buffer = self.mem_buffer(self.ctypes_data, self.width * self.height)
         self.data = np.frombuffer(buffer, np.dtype('uint8'))
         self.data = np.reshape(self.data, [self.height,self.width])
-        
+
         return self.CheckForSuccessError(r)
 
     def GetError(self):
@@ -501,7 +501,7 @@ class camera(HCAM):
 
     def SaveImage(self,filename):
         file = None if filename == None else c_char_p(filename)
-        print file
+        print(file)
         r = CALL('SaveImage',self,file)
         return self.CheckForSuccessError(r)
 
@@ -514,23 +514,23 @@ class camera(HCAM):
         r = CALL('SaveImageMemEx',self,None)
         return self.CheckForSuccessError(r)
 
-        
+
     def SetImagePos(self,x=0,y=0):
         r = CALL("SetImagePos",self,INT(x),INT(y))
         if x & 0x8000 == 0x8000:
             return self.CheckForNoSuccessError(r)
         return self.CheckForSuccessError(r)
-        
+
     def CaptureVideo(self,wait=IS.DONT_WAIT):
         """
         CaptureVideo() digitizes video images in real time and transfers
-        the images to the previously allocated image memory. 
-        Alternatively if you are using DirectDraw the images can be 
-        transferred to the graphics board. The image acquisition (DIB 
-        Mode) takes place in the memory which has been set by 
-        SetImageMem() and AllocImageMem(). GetImageMem() determines 
-        exactly where the start address in memory is. In case of ring 
-        buffering, then image acquisition loops endlessly through all 
+        the images to the previously allocated image memory.
+        Alternatively if you are using DirectDraw the images can be
+        transferred to the graphics board. The image acquisition (DIB
+        Mode) takes place in the memory which has been set by
+        SetImageMem() and AllocImageMem(). GetImageMem() determines
+        exactly where the start address in memory is. In case of ring
+        buffering, then image acquisition loops endlessly through all
         image memeories added to the sequence.
 
         wait
@@ -538,44 +538,44 @@ class camera(HCAM):
         IS.WAIT        This function synchronizes the image acquisition
                 of the V-SYNC and only then does return (i.e.
                 waits until image acquisition begins)
-        10<wait<32768    Wait time in 10 ms steps. A maximum of 327.68 
-                seconds (this is approx. 5 minutes and 20 
-                seconds) can be waited. For 1 < Wait < 10 Wait 
+        10<wait<32768    Wait time in 10 ms steps. A maximum of 327.68
+                seconds (this is approx. 5 minutes and 20
+                seconds) can be waited. For 1 < Wait < 10 Wait
                 becomes equal to 10.
         (Exp.: Wait = 100 => wait 1 sec.)
         """
         r = CALL("CaptureVideo",self,INT(wait))
         return self.CheckForSuccessError(r)
-        
+
 
     def LoadParameters(self):
         """ Load Parameter File saved previously with ueye demo """
         home_dir = expanduser("~")
         parameter_file = home_dir + '/UI154xLE-M_conf.ini'
-        if os.path.isfile(parameter_file): 
-            print "Loading Paramters for Camera"
+        if os.path.isfile(parameter_file):
+            print("Loading Paramters for Camera")
             r = CALL("LoadParameters",self,c_char_p(parameter_file))
-            print r
+            print(r)
         else:
-            print "File not Found: %s" % parameter_file
+            print("File not Found: %s" % parameter_file)
             return False
         return self.CheckForSuccessError(r)
 
     def SetColorMode(self,color_mode=IS.SET_CM_Y8):
         r = CALL("SetColorMode",self,INT(color_mode))
         return self.CheckForNoSuccessError(r)
-    
+
     def SetSubSampling(self,mode=IS.SUBSAMPLING_DISABLE):
         r = CALL("SetSubSampling",self,INT(mode))
         return self.CheckForSuccessError(r)
-        
+
     def StopLiveVideo(self,wait=IS.DONT_WAIT):
         """
-        The StopLiveVideo() function freezes the image in the VGA card 
-        or in the PC's system memory. The function is controlled with 
+        The StopLiveVideo() function freezes the image in the VGA card
+        or in the PC's system memory. The function is controlled with
         the parameter Wait. The function has two modes: Using the first
-        mode, the function immediately returns to the calling function 
-        and grabs the image in the background. In the second mode the 
+        mode, the function immediately returns to the calling function
+        and grabs the image in the background. In the second mode the
         function waits until the image has been completely acquired and
         only then does the function return.
         By the use of IS.FORCE_VIDEO_STOP a single frame recording which
@@ -584,17 +584,17 @@ class camera(HCAM):
         """
         r = CALL("StopLiveVideo",self,INT(wait))
         return self.CheckForSuccessError(r)
-        
+
     def ExitCamera (self):
         r = CALL("ExitCamera",self)
         return self.CheckForSuccessError(r)
-    
+
 
     def ReadEEPROM(self,offset = 0, count = 64):
         """
-        There is a rewritable EEPROM in the camera which serves as a 
-        small memory. Additionally to the information which is stored 
-        in the EEPROM, 64 extra bytes can be written. With the 
+        There is a rewritable EEPROM in the camera which serves as a
+        small memory. Additionally to the information which is stored
+        in the EEPROM, 64 extra bytes can be written. With the
         ReadEEPROM() command the contents of these 64 bytes can be read.
         See WriteEEPROM.
         """
@@ -606,8 +606,8 @@ class camera(HCAM):
         return buffer.value
 
     def WriteEEPROM(self, content, offset = 0):
-        """    
-        In the DCU camera there is a rewritable EEPROM, where 64 bytes 
+        """
+        In the DCU camera there is a rewritable EEPROM, where 64 bytes
         of information can be written. With the ReadEEPROM() function
         the contents of this 64 byte block can be read.
         """
@@ -625,29 +625,29 @@ class camera(HCAM):
         IS_EXPOSURE_CMD_SET_EXPOSURE = 12 #there is a whole list to implement
         TIME = DOUBLE(time)
         nSizeOfParam = 8
-        CALL('Exposure', self, 
-                UINT(IS_EXPOSURE_CMD_SET_EXPOSURE), 
-                byref(TIME), 
+        CALL('Exposure', self,
+                UINT(IS_EXPOSURE_CMD_SET_EXPOSURE),
+                byref(TIME),
                 UINT(nSizeOfParam))
 
     def InquireImageMem(self):
         """
         reads the properties of the allocated image memory.
         """
-        self.pnX = INT() 
+        self.pnX = INT()
         self.pnY = INT()
         self.pnBits  = INT()
         self.pnPitch = INT()
-        CALL('InquireImageMem', self, self.image, self.id, byref(self.pnX), byref(self.pnY), byref(self.pnBits), byref(self.pnPitch)) 
+        CALL('InquireImageMem', self, self.image, self.id, byref(self.pnX), byref(self.pnY), byref(self.pnBits), byref(self.pnPitch))
 
 
     def GetColorDepth(self):
         """
         the current VGA card colour setting and returns the bit depth (pnCol)
         and the related colour mode (pnColMode). The colour mode can be directl
-        passed to the is_SetColorMode() function. 
+        passed to the is_SetColorMode() function.
         """
-        self.pnCol = INT() 
+        self.pnCol = INT()
         self.pnColMode = INT()
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
@@ -665,7 +665,7 @@ class camera(HCAM):
 
         Keyword arguments:
         hf -- Camera handle
-        Type -- 
+        Type --
          IS_SET_IMAGE_AOI -- Set Image AOI
          IS_GET_IMAGE_AOI -- Returns the current Image AOI
          IS_SET_AUTO_BRIGHT_AOI -- Set the Auto Feature AOI for Auto Gain and Auto Shutter
@@ -690,7 +690,7 @@ class camera(HCAM):
         logger.info("rounded AOI vals: %s, %s, %s, %s" % (x, y, width, height))
         r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         isType_c = ctypes.c_int(IS.SET_AUTO_BRIGHT_AOI)
-        # r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))        
+        # r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         # isType_c = ctypes.c_int(IS.SET_AUTO_WB_AOI)
         #r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         self.roi = [0, 0, height, width]
@@ -704,8 +704,8 @@ class camera(HCAM):
         return self.SetAOI(isType, x, y, width, height)
 
     def SetAutoParameter(self, isType=IS.SET_ENABLE_AUTO_SHUTTER, pval1=1, pval2=0):
-        ''' controls Auto Gain, Auto Shutter, Auto Framerate and Auto Whitebalance 
-        functionality. Purpose of the auto functions is it to control the camera 
+        ''' controls Auto Gain, Auto Shutter, Auto Framerate and Auto Whitebalance
+        functionality. Purpose of the auto functions is it to control the camera
         image in its average'''
         pval1_c = ctypes.c_double(pval1)
         pval2_c = ctypes.c_double(pval2)
@@ -818,7 +818,7 @@ class camera(HCAM):
         r = self.SetAOI(isType=IS.SET_IMAGE_AOI, x=x, y=y, width=width, height=height)
         self.toggleAutoParameters()
         return r
-        
+
     def cleanup(self):
         self.StopLiveVideo()
         self.FreeImageMem()
@@ -840,7 +840,7 @@ class camera(HCAM):
         return True
 
     def read(self):
-        """ 
+        """
         wrapper to make analogous to opencv call
         return most recent frame
         """
@@ -849,7 +849,7 @@ class camera(HCAM):
         self.CopyImageMem()
         # frame = self.init_frame.copy()
         # frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
-        
+
         frame = cv2.cvtColor( self.data, cv2.COLOR_GRAY2RGB )
         return Frame(now, frame) #self.init_frame)
 
@@ -875,7 +875,7 @@ class camera(HCAM):
         if r is SUCCESS:
             return new_exp.value
         else:
-            return 0 
+            return 0
 
     def get_exposure_time(self):
         ''' set exposure time of camera '''
@@ -885,8 +885,8 @@ class camera(HCAM):
         if r is SUCCESS:
             return new_exp.value
         else:
-            return 0 
-            
+            return 0
+
 
 
     def set_contrast(self, cont):
@@ -922,7 +922,7 @@ class camera(HCAM):
             return True
         else:
             return False
-    
+
     def set_hardware_gain(self, nMaster):
         nMaster = ctypes.c_int(nMaster)
         ignore_me = ctypes.c_double(IS.IGNORE_PARAMETER)
@@ -962,4 +962,3 @@ class Frame(object):
         self.img = img
         self.compressed_img = compressed_img
         self.compressed_pix_fmt = compressed_pix_fmt
-
