@@ -1,29 +1,27 @@
- # This file is part of pydcu.
-
- #    pydcu is free software: you can redistribute it and/or modify
- #    it under the terms of the GNU General Public License as published by
- #    the Free Software Foundation, either version 3 of the License, or
- #    (at your option) any later version.
-
- #    pydcu is distributed in the hope that it will be useful,
- #    but WITHOUT ANY WARRANTY; without even the implied warranty of
- #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- #    GNU General Public License for more details.
-
- #    You should have received a copy of the GNU General Public License
- #    along with pydcu.  If not, see <http://www.gnu.org/licenses/>.
+# This file is part of pydcu.
+#
+# pydcu is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pydcu is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pydcu.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
 import os.path
-from os.path import expanduser # to determine user home directory
+from os.path import expanduser  # to determine user home directory
 import sys
-import textwrap
-from numpy import zeros,uint8,ctypeslib
-from ctypes import byref,c_int,create_string_buffer,c_char_p,cdll,util,c_void_p
+from numpy import zeros
+from ctypes import byref, c_int, create_string_buffer, c_char_p, cdll, util, c_void_p
 import IS
 import ctypes
 import numpy as np
-import pdb
 import time
 import cv2
 import logging
@@ -38,10 +36,11 @@ INT = c_int
 UINT = ctypes.c_uint
 DOUBLE = ctypes.c_double
 
-if os.name=='nt':
+if os.name == 'nt':
+    import win32event
     libname = 'ueye_api'
-    include_ueye_h = os.environ['PROGRAMFILES']+'\\IDS\\uEye\\Develop\\include\\uEye.h'
-if os.name=='posix':
+    include_ueye_h = os.environ['PROGRAMFILES'] + '\\IDS\\uEye\\Develop\\include\\uEye.h'
+elif os.name == 'posix':
     libname = 'ueye_api'
     include_ueye_h = "/usr/include/ueye.h"
 lib = util.find_library(libname)
@@ -51,6 +50,7 @@ if lib is None:
 libueye = cdll.LoadLibrary(lib)
 logger = logging.getLogger()
 
+
 def CALL(name, *args):
     """
     Calls libueye function "name" and arguments "args".
@@ -59,17 +59,18 @@ def CALL(name, *args):
     func = getattr(libueye, funcname)
     new_args = []
     for a in args:
-        if isinstance (a, unicode):
-            print(name, 'argument',a, 'is unicode')
-            new_args.append (str (a))
+        if isinstance(a, unicode):
+            print(name, 'argument', a, 'is unicode')
+            new_args.append(str(a))
         else:
-            new_args.append (a)
+            new_args.append(a)
     return func(*new_args)
 
-def pair_gen(getXconst,getYconst):
+
+def pair_gen(getXconst, getYconst):
     class pair(list):
-        def __init__(self,args,camera):
-            list.__init__(self,args)
+        def __init__(self, args, camera):
+            list.__init__(self, args)
             self.cam = camera
 
         @property
@@ -77,68 +78,69 @@ def pair_gen(getXconst,getYconst):
             return self[0]
 
         @x.setter
-        def x(self,value):
+        def x(self, value):
             self[0] = value
             y = self.cam.SetImagePos(getYconst)
-            self.cam.SetImagePos(value,y)
+            self.cam.SetImagePos(value, y)
 
         @property
         def y(self):
             return self[1]
 
         @y.setter
-        def y(self,value):
+        def y(self, value):
             self[1] = value
             x = self.cam.SetImagePos(getXconst)
-            self.cam.SetImagePos(x,value)
+            self.cam.SetImagePos(x, value)
 
     return pair
 
-pos_pair = pair_gen(IS.GET_IMAGE_POS_X,IS.GET_IMAGE_POS_Y)
-size_pair = pair_gen(IS.GET_IMAGE_SIZE_X,IS.GET_IMAGE_SIZE_Y)
+pos_pair = pair_gen(IS.GET_IMAGE_POS_X, IS.GET_IMAGE_POS_Y)
+size_pair = pair_gen(IS.GET_IMAGE_SIZE_X, IS.GET_IMAGE_SIZE_Y)
+
 
 class image(object):
-    def __init__(self,camera):
+    def __init__(self, camera):
         self.cam = camera
 
     @property
     def size(self):
         x = self.cam.SetImageSize(x=IS.GET_IMAGE_SIZE_X)
         y = self.cam.SetImageSize(x=IS.GET_IMAGE_SIZE_Y)
-        return size_pair([x,y],self.cam)
+        return size_pair([x, y], self.cam)
 
     @size.setter
-    def size(self,value):
+    def size(self, value):
         if len(value) != 2:
-            raise Exception ("Value len not equal 2.")
-        (width,height) = value
+            raise Exception("Value len not equal 2.")
+        (width, height) = value
         if width is None:
-            width =  self.cam.SetImageSize(x=IS.GET_IMAGE_SIZE_X)
+            width = self.cam.SetImageSize(x=IS.GET_IMAGE_SIZE_X)
         if height is None:
             height = self.cam.SetImageSize(x=IS.GET_IMAGE_SIZE_Y)
-        self.cam.SetImageSize(x=width,y=height)
+        self.cam.SetImageSize(x=width, y=height)
 
     @property
     def position(self):
         x = self.cam.SetImagePos(IS.GET_IMAGE_POS_X)
-        y =  self.cam.SetImagePos(IS.GET_IMAGE_POS_Y)
-        r = pos_pair([x,y],self.cam)
+        y = self.cam.SetImagePos(IS.GET_IMAGE_POS_Y)
+        r = pos_pair([x, y], self.cam)
         return r
 
     @position.setter
-    def position(self,value):
+    def position(self, value):
         if len(value) != 2:
-            raise Exception ("Value len not equal 2.")
-        (x,y) = value
+            raise Exception("Value len not equal 2.")
+        (x, y) = value
         if x is None:
-            x =  self.cam.SetImagePos(IS.GET_IMAGE_POS_X)
+            x = self.cam.SetImagePos(IS.GET_IMAGE_POS_X)
         if y is None:
             y = self.cam.SetImagePos(IS.GET_IMAGE_POS_Y)
-        self.cam.SetImagePos(x,y)
+        self.cam.SetImagePos(x, y)
 
 
 class pycam:
-    def __init__(self,camera_id = 0):
+    def __init__(self, camera_id=0):
         self.cam = camera(camera_id)
         self.image = image(self.cam)
         self.cam.AllocImageMem()
@@ -147,7 +149,7 @@ class pycam:
     def __del__(self):
         self.cam.ExitCamera()
 
-    def snapshot(self,filename=None,param=75):
+    def snapshot(self, filename=None, param=75):
         self.cam.CaptureVideo(wait=IS.WAIT)
         self.cam.StopLiveVideo(wait=IS.WAIT)
         r = self.cam.SaveImage(filename)
@@ -161,37 +163,39 @@ class pycam:
 
 
 class camera(HCAM):
-    def __init__(self,camera_id=0):
-        HCAM.__init__(self,0)
-        r = CALL('InitCamera',byref(self),HWND(0))
+    def __init__(self, camera_id=0):
+        HCAM.__init__(self, 0)
+        r = CALL('InitCamera', byref(self), HWND(0))
         if r is not SUCCESS:
-            raise Exception("Error %d"%r)
+            raise Exception("Error %d" % r)
         self.width = 1024
         self.height = 768
         self.seq = 0
-        self.data = zeros((self.height,self.width),dtype=np.uint8)
+        self.data = zeros((self.height, self.width), dtype=np.uint8)
         self.ctypes_data = (ctypes.c_int * (self.width * ((8 + 1) / 8 + 0) * self.height))()
         self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
         self.mem_buffer.restype = ctypes.py_object
         self.sizes = self.enum_sizes()
-        self.sizes_menu = dict(zip([str(w)+"x"+str(h) for w,h in self.sizes], range(len(self.sizes))))
+        self.sizes_menu = dict(zip([str(w) + "x" + str(h) for w, h in self.sizes], range(len(self.sizes))))
         self.rates = self.enum_rates()
-        self.rates_menu = dict(zip([str(float(d)/n) for n,d in self.rates], range(len(self.rates))))
+        self.rates_menu = dict(zip([str(float(d) / n) for n, d in self.rates], range(len(self.rates))))
         fps = self.rates[2]
         try:
             self.current_rate_idx = self.rates.index(fps)
         except ValueError:
             logger.warning("Buggy Video Camera: Not all available rates are exposed.")
             self.current_rate_idx = 0
+        if os.name == 'nt':
+            self.hEvent = [None] * 14
         return None
 
-    def CheckForSuccessError(self,return_value):
+    def CheckForSuccessError(self, return_value):
         if return_value is not SUCCESS:
             self.GetError()
             raise Exception(self.error_message.value)
         return SUCCESS
 
-    def CheckForNoSuccessError(self,return_value):
+    def CheckForNoSuccessError(self, return_value):
         if return_value is NO_SUCCESS:
             self.GetError()
             raise Exception(self.error_message.value)
@@ -207,7 +211,7 @@ class camera(HCAM):
         sequence (nID) is limited to the integer value range.
         """
         self.seq += 1
-        r = CALL('AddToSequence',self,self.image,self.id)
+        r = CALL('AddToSequence', self, self.image, self.id)
         return self.CheckForSuccessError(r)
 
     def ClearSequence(self):
@@ -219,10 +223,10 @@ class camera(HCAM):
         executed.
         Not tested!
         """
-        r = CALL('ClearSequence',self)
+        r = CALL('ClearSequence', self)
         return self.CheckForSuccessError(r)
 
-    def LockSeqBuf(self,number):
+    def LockSeqBuf(self, number):
         """
         LockSeqBuf() can be used to disable the overwriting of the image
         memory with new image data. And thus it is possible to prevent
@@ -232,16 +236,16 @@ class camera(HCAM):
         access the image memory use function UnlockSeqBuf().
         Not tested!
         """
-        r = CALL('LockSeqBuf',self,INT(number),self.image)
+        r = CALL('LockSeqBuf', self, INT(number), self.image)
         return self.CheckForSuccessError(r)
 
-    def UnlockSeqBuf(self,number):
+    def UnlockSeqBuf(self, number):
         """
         With UnlockSeqBuf() image acquisition is allowed in a previously
         locked image memory. The image memory is put to the previous
         position in the sequence list.
         """
-        r = CALL('UnlockSeqBuf',self,INT(number),self.image)
+        r = CALL('UnlockSeqBuf', self, INT(number), self.image)
         return self.CheckForSuccessError(r)
 
     def GetLastMemorySequence(self):
@@ -252,19 +256,19 @@ class camera(HCAM):
         images out of the camera memory.
         No memory board to test this, Not tested!
         """
-        r = CALL('GetLastMemorySequence',self,byref(self.id))
+        r = CALL('GetLastMemorySequence', self, byref(self.id))
         return self.CheckForSuccessError(r)
 
-    def TransferImage():
+    def TransferImage(self):
         """
         Experiment to find out how it works
         TransferImage(self, INT nMemID, INT seqID, INT imageNr, INT reserved)
         Not in the user manual!
         Not implemented!
         """
-        CALL('TransferImage',self,INT(),INT(),INT(),INT())
+        CALL('TransferImage', self, INT(), INT(), INT(), INT())
 
-    def TransferMemorySequence():
+    def TransferMemorySequence(self):
         """
         Experiment to find out how it works
         TransferMemorySequence(HIDS hf, INT seqID, INT StartNr, INT nCount, INT nSeqPos);
@@ -273,19 +277,19 @@ class camera(HCAM):
         """
         pass
 
-    def GetMemorySequenceWindow(self,id):
+    def GetMemorySequenceWindow(self, id):
         """
         The function GetMemorySequenceWindow() can be used to check the
         window size of a specified memory board sequence. The assigned
         sequence ID is required as a parameter.
         Not tested!
         """
-        top    = INT()
-        left   = INT()
-        right  = INT()
+        top = INT()
+        left = INT()
+        right = INT()
         bottom = INT()
-        CALL('GetMemorySequenceWindow',self,INT(id),byref(left),byref(top),byref(right),byref(bottom))
-        return (left.value,top.value,right.value,bottom.value)
+        CALL('GetMemorySequenceWindow', self, INT(id), byref(left), byref(top), byref(right), byref(bottom))
+        return (left.value, top.value, right.value, bottom.value)
 
     def GetActSeqBuf(self):
         """
@@ -307,10 +311,10 @@ class camera(HCAM):
         paqID = byref(aqID)
         ppcMem = byref(pcMem)
         ppcMemLast = byref(pcMemLast)
-        r = CALL('GetActSeqBuf',self,paqID,ppcMem,ppcMemLast)
+        r = CALL('GetActSeqBuf', self, paqID, ppcMem, ppcMemLast)
         return self.CheckForSuccessError(r)
 
-    def AllocImageMem(self,width=260,height=216,bitpixel=8):
+    def AllocImageMem(self, width=260, height=216, bitpixel=8):
         """
         AllocImageMem() allocates image memory for an image with width,
         width and height, height and colour depth bitspixel. Memory size
@@ -345,12 +349,12 @@ class camera(HCAM):
         """
         self.image = c_char_p()
         self.id = INT()
-        r =  CALL('AllocImageMem',self,
-            INT(width),
-            INT(height),
-            INT(bitpixel),
-            byref(self.image),
-            byref(self.id))
+        r = CALL('AllocImageMem', self,
+                 INT(width),
+                 INT(height),
+                 INT(bitpixel),
+                 byref(self.image),
+                 byref(self.id))
         return self.CheckForSuccessError(r)
 
     def GetNumberOfMemoryImages(self):
@@ -363,7 +367,7 @@ class camera(HCAM):
 
         """
         number = INT()
-        r = CALL('GetNumberOfMemoryImages',self,INT(self.seq),byref(number))
+        r = CALL('GetNumberOfMemoryImages', self, INT(self.seq), byref(number))
         return self.CheckForSuccessError(r)
 
     def SetImageMem(self):
@@ -374,10 +378,10 @@ class camera(HCAM):
         the image size of the active memory. A pointer from function
         AllocImgMem() has to be given to parameter pcImgMem.
         """
-        r = CALL("SetImageMem",self,self.image,self.id)
+        r = CALL("SetImageMem", self, self.image, self.id)
         return self.CheckForSuccessError(r)
 
-    def SetImageSize(self,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
+    def SetImageSize(self, x=IS.GET_IMAGE_SIZE_X_MAX, y=IS.GET_IMAGE_SIZE_Y_MAX):  # non-zero ret
         """
         Sets the image size.
 
@@ -392,12 +396,12 @@ class camera(HCAM):
         IS.GET_IMAGE_SIZE_Y_INC Increment for the AOI height
         y is ignored and the specified size is returned.
         """
-        r = CALL("SetImageSize",self,INT(x),INT(y))
+        r = CALL("SetImageSize", self, INT(x), INT(y))
         if x & 0x8000 == 0x8000:
             return self.CheckForNoSuccessError(r)
         return self.CheckForSuccessError(r)
 
-    def GetImageSize(self): #,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
+    def GetImageSize(self):  # ,x=IS.GET_IMAGE_SIZE_X_MAX,y=IS.GET_IMAGE_SIZE_Y_MAX):#non-zero ret
         """
         Sets the image size.
 
@@ -412,28 +416,27 @@ class camera(HCAM):
         IS.GET_IMAGE_SIZE_Y_INC Increment for the AOI height
         y is ignored and the specified size is returned.
         """
-        width_c=ctypes.c_int(IS.GET_IMAGE_SIZE_X)
-        height_c=ctypes.c_int(IS.GET_IMAGE_SIZE_Y)
-        width = CALL("SetImageSize",self, width_c)
-        height = CALL("SetImageSize",self, height_c)
-        #if r == 0:
+        width_c = ctypes.c_int(IS.GET_IMAGE_SIZE_X)
+        height_c = ctypes.c_int(IS.GET_IMAGE_SIZE_Y)
+        width = CALL("SetImageSize", self, width_c)
+        height = CALL("SetImageSize", self, height_c)
+        # if r == 0:
         return ([width, height])
 
-        #else:
+        # else:
         #    return self.CheckForSuccessError(r)
 
-
-    def FreeImageMem (self):
+    def FreeImageMem(self):
         """
         FreeImageMem() deallocates previously allocated image memory.i
         For pcImgMem one of the pointers from AllocImgMem() has to be
         used. All other pointers lead to an error message! The repeated
         handing over of the same pointers also leads to an error message
         """
-        r = CALL("FreeImageMem",self,self.image,self.id)
+        r = CALL("FreeImageMem", self, self.image, self.id)
         return self.CheckForSuccessError(r)
 
-    def SetAllocatedImageMem(self,width=260,height=216,bitpixel=8):
+    def SetAllocatedImageMem(self, width=260, height=216, bitpixel=8):
         """
         Set an allocated memory, that was not allocated using
         AllocImageMem, to the driver so it can be used to store the
@@ -446,12 +449,12 @@ class camera(HCAM):
         """
         self.image = self.data.ctypes.data_as(c_char_p)
         self.id = INT()
-        r = CALL('SetAllocatedImageMem',self,
-            INT(width),
-            INT(height),
-            INT(bitpixel),
-            self.data.ctypes.data,
-            byref(self.id))
+        r = CALL('SetAllocatedImageMem', self,
+                 INT(width),
+                 INT(height),
+                 INT(bitpixel),
+                 self.data.ctypes.data,
+                 byref(self.id))
         return self.CheckForSuccessError(r)
 
     def GetActiveImageMem(self):
@@ -465,7 +468,7 @@ class camera(HCAM):
         Also see GetImgMem().
         Not tested!
         """
-        CALL('GetActiveImageMem',self,byref(self.image),byref(self.id))
+        CALL('GetActiveImageMem', self, byref(self.image), byref(self.id))
 
     def GetImageMem(self):
         """
@@ -474,10 +477,10 @@ class camera(HCAM):
         back buffer (or the visible area - DirectDraw Primary Surface
         mode).
         """
-        CALL('GetImageMem',self,byref(self.image))
+        CALL('GetImageMem', self, byref(self.image))
 
-    def FreezeVideo(self,wait=IS.WAIT):
-        CALL("FreezeVideo",self,INT(wait))
+    def FreezeVideo(self, wait=IS.WAIT):
+        CALL("FreezeVideo", self, INT(wait))
 
     def CopyImageMem(self):
         """
@@ -485,43 +488,42 @@ class camera(HCAM):
         described is pcSource and nID to the area in memory, which
         pcDest points to.
         """
-        r = CALL("CopyImageMem",self,self.image,self.id,byref(self.ctypes_data))
+        r = CALL("CopyImageMem", self, self.image, self.id, byref(self.ctypes_data))
         buffer = self.mem_buffer(self.ctypes_data, self.width * self.height)
         self.data = np.frombuffer(buffer, np.dtype('uint8'))
-        self.data = np.reshape(self.data, [self.height,self.width])
+        self.data = np.reshape(self.data, [self.height, self.width])
 
         return self.CheckForSuccessError(r)
 
     def GetError(self):
         self.error = INT()
         self.error_message = c_char_p()
-        return CALL("GetError",self,
-            byref(self.error),
-            byref(self.error_message))
+        return CALL("GetError", self,
+                    byref(self.error),
+                    byref(self.error_message))
 
-    def SaveImage(self,filename):
-        file = None if filename == None else c_char_p(filename)
+    def SaveImage(self, filename):
+        file = None if filename is None else c_char_p(filename)
         print(file)
-        r = CALL('SaveImage',self,file)
+        r = CALL('SaveImage', self, file)
         return self.CheckForSuccessError(r)
 
-    def SaveImageEx(self,filename=None,format=IS.IMG_JPG,param=75):
-        file = None if filename == None else c_char_p(filename)
-        r = CALL('SaveImageEx',self,file,INT(format))#,INT(format),INT(param))
+    def SaveImageEx(self, filename=None, format=IS.IMG_JPG, param=75):
+        file = None if filename is None else c_char_p(filename)
+        r = CALL('SaveImageEx', self, file, INT(format))  # ,INT(format),INT(param))
         return self.CheckForSuccessError(r)
 
-    def SaveImageMemEx(self,file,type="jpg"):
-        r = CALL('SaveImageMemEx',self,None)
+    def SaveImageMemEx(self, file, type="jpg"):
+        r = CALL('SaveImageMemEx', self, None)
         return self.CheckForSuccessError(r)
 
-
-    def SetImagePos(self,x=0,y=0):
-        r = CALL("SetImagePos",self,INT(x),INT(y))
+    def SetImagePos(self, x=0, y=0):
+        r = CALL("SetImagePos", self, INT(x), INT(y))
         if x & 0x8000 == 0x8000:
             return self.CheckForNoSuccessError(r)
         return self.CheckForSuccessError(r)
 
-    def CaptureVideo(self,wait=IS.DONT_WAIT):
+    def CaptureVideo(self, wait=IS.DONT_WAIT):
         """
         CaptureVideo() digitizes video images in real time and transfers
         the images to the previously allocated image memory.
@@ -544,9 +546,8 @@ class camera(HCAM):
                 becomes equal to 10.
         (Exp.: Wait = 100 => wait 1 sec.)
         """
-        r = CALL("CaptureVideo",self,INT(wait))
+        r = CALL("CaptureVideo", self, INT(wait))
         return self.CheckForSuccessError(r)
-
 
     def LoadParameters(self):
         """ Load Parameter File saved previously with ueye demo """
@@ -554,22 +555,22 @@ class camera(HCAM):
         parameter_file = home_dir + '/UI154xLE-M_conf.ini'
         if os.path.isfile(parameter_file):
             print("Loading Paramters for Camera")
-            r = CALL("LoadParameters",self,c_char_p(parameter_file))
+            r = CALL("LoadParameters", self, c_char_p(parameter_file))
             print(r)
         else:
             print("File not Found: %s" % parameter_file)
             return False
         return self.CheckForSuccessError(r)
 
-    def SetColorMode(self,color_mode=IS.SET_CM_Y8):
-        r = CALL("SetColorMode",self,INT(color_mode))
+    def SetColorMode(self, color_mode=IS.SET_CM_Y8):
+        r = CALL("SetColorMode", self, INT(color_mode))
         return self.CheckForNoSuccessError(r)
 
-    def SetSubSampling(self,mode=IS.SUBSAMPLING_DISABLE):
-        r = CALL("SetSubSampling",self,INT(mode))
+    def SetSubSampling(self, mode=IS.SUBSAMPLING_DISABLE):
+        r = CALL("SetSubSampling", self, INT(mode))
         return self.CheckForSuccessError(r)
 
-    def StopLiveVideo(self,wait=IS.DONT_WAIT):
+    def StopLiveVideo(self, wait=IS.DONT_WAIT):
         """
         The StopLiveVideo() function freezes the image in the VGA card
         or in the PC's system memory. The function is controlled with
@@ -582,15 +583,14 @@ class camera(HCAM):
         is started with FreezeVideo(IS.DONT_WAIT) can be terminated
         immediately.
         """
-        r = CALL("StopLiveVideo",self,INT(wait))
+        r = CALL("StopLiveVideo", self, INT(wait))
         return self.CheckForSuccessError(r)
 
-    def ExitCamera (self):
-        r = CALL("ExitCamera",self)
+    def ExitCamera(self):
+        r = CALL("ExitCamera", self)
         return self.CheckForSuccessError(r)
 
-
-    def ReadEEPROM(self,offset = 0, count = 64):
+    def ReadEEPROM(self, offset=0, count=64):
         """
         There is a rewritable EEPROM in the camera which serves as a
         small memory. Additionally to the information which is stored
@@ -602,10 +602,10 @@ class camera(HCAM):
             sys.stderr.write("offset + count too big, must be smaller or equal 64")
             raise
         buffer = create_string_buffer(count)
-        CALL('ReadEEPROM',self,INT(offset),buffer,INT(count))
+        CALL('ReadEEPROM', self, INT(offset), buffer, INT(count))
         return buffer.value
 
-    def WriteEEPROM(self, content, offset = 0):
+    def WriteEEPROM(self, content, offset=0):
         """
         In the DCU camera there is a rewritable EEPROM, where 64 bytes
         of information can be written. With the ReadEEPROM() function
@@ -615,20 +615,20 @@ class camera(HCAM):
         if count + offset > 64:
             raise Exception("Content to long")
         pcString = c_char_p(content)
-        r = CALL('WriteEEPROM',self,INT(offset),pcString,INT(count))
+        r = CALL('WriteEEPROM', self, INT(offset), pcString, INT(count))
         return self.CheckForSuccessError(r)
 
     def Exposure(self, time):
         """
         Sets the exposure time (in ms).
         """
-        IS_EXPOSURE_CMD_SET_EXPOSURE = 12 #there is a whole list to implement
+        IS_EXPOSURE_CMD_SET_EXPOSURE = 12  # there is a whole list to implement
         TIME = DOUBLE(time)
         nSizeOfParam = 8
         CALL('Exposure', self,
-                UINT(IS_EXPOSURE_CMD_SET_EXPOSURE),
-                byref(TIME),
-                UINT(nSizeOfParam))
+             UINT(IS_EXPOSURE_CMD_SET_EXPOSURE),
+             byref(TIME),
+             UINT(nSizeOfParam))
 
     def InquireImageMem(self):
         """
@@ -636,10 +636,9 @@ class camera(HCAM):
         """
         self.pnX = INT()
         self.pnY = INT()
-        self.pnBits  = INT()
+        self.pnBits = INT()
         self.pnPitch = INT()
         CALL('InquireImageMem', self, self.image, self.id, byref(self.pnX), byref(self.pnY), byref(self.pnBits), byref(self.pnPitch))
-
 
     def GetColorDepth(self):
         """
@@ -651,7 +650,6 @@ class camera(HCAM):
         self.pnColMode = INT()
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
-
 
     def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=260, height=216):
         """
@@ -678,10 +676,10 @@ class camera(HCAM):
         pHeight -- Height of the AOI
         """
         logger.info("orig AOI vals: %s, %s, %s, %s" % (x, y, width, height))
-        x = int(x/4) * 4
-        y = int(y/4) * 4
-        width = int(width/4) * 4
-        height = int(height/4) * 4
+        x = int(x / 4) * 4
+        y = int(y / 4) * 4
+        width = int(width / 4) * 4
+        height = int(height / 4) * 4
         xPos_c = ctypes.c_int(x)
         yPos_c = ctypes.c_int(y)
         width_c = ctypes.c_int(width)
@@ -692,9 +690,9 @@ class camera(HCAM):
         isType_c = ctypes.c_int(IS.SET_AUTO_BRIGHT_AOI)
         # r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         # isType_c = ctypes.c_int(IS.SET_AUTO_WB_AOI)
-        #r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
+        # r = CALL('SetAOI', self, isType_c, byref(xPos_c), byref(yPos_c), byref(width_c), byref(height_c))
         self.roi = [0, 0, height, width]
-        self.t_roi = [y, x, y+height, x+width]
+        self.t_roi = [y, x, y + height, x + width]
         if r == 0:
             return([xPos_c.value, yPos_c.value, width_c.value, height_c.value])
         else:
@@ -749,7 +747,6 @@ class camera(HCAM):
         r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
         return bool(r['pval1'])
 
-
     def getAutoExposure(self):
         r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_SHUTTER, pval1=1, pval2=0)
         return bool(r['pval1'])
@@ -785,8 +782,8 @@ class camera(HCAM):
 
     def enum_rates(self):
         rates = []
-        for n in [1000.0/25, 1000.0/30, 1000.0/60,1000.0/100,1000.0/200]:
-            rates.append((n,1000.0))
+        for n in [1000.0 / 25, 1000.0 / 30, 1000.0 / 60, 1000.0 / 100, 1000.0 / 200]:
+            rates.append((n, 1000.0))
         return rates
 
     def set_rate(self, fps):
@@ -795,14 +792,13 @@ class camera(HCAM):
         except ValueError:
             logger.warning("Buggy Video Camera: Not all available rates are exposed.")
             self.current_rate_idx = 0
-        logger.info("new frame rate " + str(fps[1]/fps[0]))
-        return self.SetFrameRate(fps[1]/fps[0])
+        logger.info("new frame rate " + str(fps[1] / fps[0]))
+        return self.SetFrameRate(fps[1] / fps[0])
 
     def get_rate(self):
         return self.GetFrameRate()
 
-
-    def set_rate_idx(self,rate_id):
+    def set_rate_idx(self, rate_id):
         new_rate = self.rates[rate_id]
         r = self.set_rate(new_rate)
         return r
@@ -824,20 +820,42 @@ class camera(HCAM):
         self.FreeImageMem()
         self.ExitCamera()
 
-
     def isOpened(self):
         return True
+
+    def initEvent(self, event=IS.SET_EVENT_FRAME):
+        if os.name == 'nt':
+            self.hEvent[IS.SET_EVENT_FRAME] = win32event.CreateEvent(None, 0, 0, None)
+            handle = ctypes.c_int(int(self.hEvent[IS.SET_EVENT_FRAME]))
+            which = ctypes.c_int(event)
+            r = CALL('InitEvent', self, handle, which)
+        elif os.name == 'posix':
+            print("No need to initialize the event under Linux.")
+
+    def exitEvent(self, event=IS.SET_EVENT_FRAME):
+        if os.name == 'nt':
+            which = ctypes.c_int(event)
+            r = CALL('ExitEvent', self, which)
+        elif os.name == 'posix':
+            print("No need to exit the event under Linux.")
 
     def enableEvent(self, event=IS.SET_EVENT_FRAME):
         which = ctypes.c_int(event)
         r = CALL('EnableEvent', self, which)
 
-    def waitForNewFrame(self):
+    def disableEvent(self, event=IS.SET_EVENT_FRAME):
+        which = ctypes.c_int(event)
+        r = CALL('DisableEvent', self, which)
+
+    def waitForNewFrame(self, timeout=1000):
         ''' wait until new frame is available '''
-        which = ctypes.c_int(IS.SET_EVENT_FRAME)
-        timeout = ctypes.c_int(1000)
-        r = CALL('WaitEvent', self, which, timeout)
-        return True
+        if os.name == 'nt':
+            r = win32event.WaitForSingleObject(self.hEvent[IS.SET_EVENT_FRAME], timeout)
+        elif os.name == 'posix':
+            which = ctypes.c_int(IS.SET_EVENT_FRAME)
+            timeout = ctypes.c_int(timeout)
+            r = CALL('WaitEvent', self, which, timeout)
+        return r
 
     def read(self):
         """
@@ -850,12 +868,11 @@ class camera(HCAM):
         # frame = self.init_frame.copy()
         # frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
 
-        frame = cv2.cvtColor( self.data, cv2.COLOR_GRAY2RGB )
-        return Frame(now, frame) #self.init_frame)
+        frame = cv2.cvtColor(self.data, cv2.COLOR_GRAY2RGB)
+        return Frame(now, frame)  # self.init_frame)
 
     def enum_sizes(self):
-        return([(260,216)])
-
+        return([(260, 216)])
 
     # def set_exposure_time(self, exp):
     #     ''' set exposure time of camera '''
@@ -887,12 +904,10 @@ class camera(HCAM):
         else:
             return 0
 
-
-
     def set_contrast(self, cont):
         ''' set contrast from 0 - 200%'''
         cont = int(cont)
-        cont = max(0,cont)
+        cont = max(0, cont)
         cont = min(511, cont)
         cont = ctypes.c_int(cont)
         r = CALL('SetContrast', self, cont)
@@ -911,7 +926,6 @@ class camera(HCAM):
             return True
         else:
             return False
-
 
     def set_gain_boost(self, enable=True):
         if enable:
@@ -936,10 +950,9 @@ class camera(HCAM):
         r = CALL('SetHardwareGain', self, IS.GET_MASTER_GAIN)
         return r
 
-
     def set_brightness(self, bright):
         ''' set brightness from 0 - 200%'''
-        bright = max(0,bright)
+        bright = max(0, bright)
         bright = min(255, bright)
         bright = ctypes.c_int(bright)
         r = CALL('SetBrightness', self, bright)
@@ -951,8 +964,6 @@ class camera(HCAM):
     def get_brightness(self):
         r = CALL('SetBrightness', self, IS.GET_BRIGHTNESS)
         return r
-
-
 
 
 class Frame(object):
