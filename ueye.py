@@ -171,6 +171,8 @@ class camera(HCAM):
         self.width = 1024
         self.height = 768
         self.seq = 0
+        self.image = []
+        self.nId = []
         self.data = zeros((self.height, self.width), dtype=np.uint8)
         self.ctypes_data = (ctypes.c_int * (self.width * ((8 + 1) / 8 + 0) * self.height))()
         self.mem_buffer = ctypes.pythonapi.PyBuffer_FromMemory
@@ -503,7 +505,7 @@ class camera(HCAM):
             self.data = np.frombuffer(buffer, np.dtype('uint8'))
             self.data = np.reshape(self.data, [self.height, self.width])
         else:
-            data[index] = np.reshape(np.frombuffer(buffer, np.dtype('uint8')), [self.height, self.width])
+            data[index] = np.copy(np.reshape(np.frombuffer(buffer, np.dtype('uint8')), [self.height, self.width]))
         return self.CheckForSuccessError(r)
 
     def GetError(self):
@@ -975,6 +977,28 @@ class camera(HCAM):
     def get_brightness(self):
         r = CALL('SetBrightness', self, IS.GET_BRIGHTNESS)
         return r
+
+    def createSequence(self, n=2):
+        # allocate camera memory
+        for x in range(0, n):
+            self.image.append(ctypes.c_char_p())
+            self.nId.append(ctypes.c_long())
+            self.AllocImageMem(width=1024, height=768, bitpixel=8, image=self.image[x], nId=self.nId[x])
+            self.SetImageMem(image=self.image[x], nId=self.nId[x])
+        # add camera memory to sequence
+        for x in range(0, n):
+            self.AddToSequence(image=self.image[x], nId=self.nId[x])
+
+    def destroySequence(self):
+        self.ClearSequence()
+        for x in range(0, self.seq):
+            self.FreeImageMem(self.image[x], self.nId[x])
+        self.seq = 0
+
+    def copyData(self, data=None):
+        print self.seq
+        for x in range(0, self.seq):
+            self.CopyImageMem(self.image[x], self.nId[x], data, x)
 
 
 class Frame(object):
