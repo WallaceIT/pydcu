@@ -201,7 +201,7 @@ class camera(HCAM):
             raise Exception(self.error_message.value)
         return return_value
 
-    def AddToSequence(self):
+    def AddToSequence(self, image, nId):
         """
         AddToSequence() inserts image memory into the image memory list,
         which is to be used for ring buffering. The image memory has to
@@ -211,7 +211,7 @@ class camera(HCAM):
         sequence (nID) is limited to the integer value range.
         """
         self.seq += 1
-        r = CALL('AddToSequence', self, self.image, self.id)
+        r = CALL('AddToSequence', self, image, nId)
         return self.CheckForSuccessError(r)
 
     def ClearSequence(self):
@@ -226,7 +226,7 @@ class camera(HCAM):
         r = CALL('ClearSequence', self)
         return self.CheckForSuccessError(r)
 
-    def LockSeqBuf(self, number):
+    def LockSeqBuf(self, number, image):
         """
         LockSeqBuf() can be used to disable the overwriting of the image
         memory with new image data. And thus it is possible to prevent
@@ -236,16 +236,16 @@ class camera(HCAM):
         access the image memory use function UnlockSeqBuf().
         Not tested!
         """
-        r = CALL('LockSeqBuf', self, INT(number), self.image)
+        r = CALL('LockSeqBuf', self, INT(number), image)
         return self.CheckForSuccessError(r)
 
-    def UnlockSeqBuf(self, number):
+    def UnlockSeqBuf(self, number, image):
         """
         With UnlockSeqBuf() image acquisition is allowed in a previously
         locked image memory. The image memory is put to the previous
         position in the sequence list.
         """
-        r = CALL('UnlockSeqBuf', self, INT(number), self.image)
+        r = CALL('UnlockSeqBuf', self, INT(number), image)
         return self.CheckForSuccessError(r)
 
     def GetLastMemorySequence(self):
@@ -312,9 +312,9 @@ class camera(HCAM):
         ppcMem = byref(pcMem)
         ppcMemLast = byref(pcMemLast)
         r = CALL('GetActSeqBuf', self, paqID, ppcMem, ppcMemLast)
-        return self.CheckForSuccessError(r)
+        return aqID.value  # FIXME: compare pointers to get the correct SEQUENCE ID
 
-    def AllocImageMem(self, width=260, height=216, bitpixel=8):
+    def AllocImageMem(self, width=260, height=216, bitpixel=8, image=None, nId=None):
         """
         AllocImageMem() allocates image memory for an image with width,
         width and height, height and colour depth bitspixel. Memory size
@@ -347,14 +347,14 @@ class camera(HCAM):
         the DirectDraw modes, the allocation of an image memory is not
         required!
         """
-        self.image = c_char_p()
-        self.id = INT()
-        r = CALL('AllocImageMem', self,
-                 INT(width),
-                 INT(height),
-                 INT(bitpixel),
-                 byref(self.image),
-                 byref(self.id))
+        if image is None:
+            self.image = c_char_p()
+            self.id = INT()
+            r = CALL('AllocImageMem', self, INT(width), INT(height),
+                     INT(bitpixel), byref(self.image), byref(self.id))
+        else:
+            r = CALL('AllocImageMem', self, INT(width), INT(height),
+                     INT(bitpixel), byref(image), byref(nId))
         return self.CheckForSuccessError(r)
 
     def GetNumberOfMemoryImages(self):
@@ -370,7 +370,7 @@ class camera(HCAM):
         r = CALL('GetNumberOfMemoryImages', self, INT(self.seq), byref(number))
         return self.CheckForSuccessError(r)
 
-    def SetImageMem(self):
+    def SetImageMem(self, image=None, nId=None):
         """
         SetImageMem() sets the allocated image memory to active memory.
         Only an active image memory can receive image data. After
@@ -378,7 +378,10 @@ class camera(HCAM):
         the image size of the active memory. A pointer from function
         AllocImgMem() has to be given to parameter pcImgMem.
         """
-        r = CALL("SetImageMem", self, self.image, self.id)
+        if image is None:
+            r = CALL("SetImageMem", self, self.image, self.d)
+        else:
+            r = CALL("SetImageMem", self, image, nId)
         return self.CheckForSuccessError(r)
 
     def SetImageSize(self, x=IS.GET_IMAGE_SIZE_X_MAX, y=IS.GET_IMAGE_SIZE_Y_MAX):  # non-zero ret
@@ -426,14 +429,17 @@ class camera(HCAM):
         # else:
         #    return self.CheckForSuccessError(r)
 
-    def FreeImageMem(self):
+    def FreeImageMem(self, image=None, nId=None):
         """
         FreeImageMem() deallocates previously allocated image memory.i
         For pcImgMem one of the pointers from AllocImgMem() has to be
         used. All other pointers lead to an error message! The repeated
         handing over of the same pointers also leads to an error message
         """
-        r = CALL("FreeImageMem", self, self.image, self.id)
+        if image is None:
+            r = CALL("FreeImageMem", self, self.image, self.id)
+        else:
+            r = CALL("FreeImageMem", self, image, nId)
         return self.CheckForSuccessError(r)
 
     def SetAllocatedImageMem(self, width=260, height=216, bitpixel=8):
@@ -482,17 +488,22 @@ class camera(HCAM):
     def FreezeVideo(self, wait=IS.WAIT):
         CALL("FreezeVideo", self, INT(wait))
 
-    def CopyImageMem(self):
+    def CopyImageMem(self, image, nId, data=None, index=None):
         """
         CopyImageMem() copies the contents of the image memory, as
         described is pcSource and nID to the area in memory, which
         pcDest points to.
         """
-        r = CALL("CopyImageMem", self, self.image, self.id, byref(self.ctypes_data))
+        if image is None:
+            r = CALL("CopyImageMem", self, self.image, self.id, byref(self.ctypes_data))
+        else:
+            r = CALL("CopyImageMem", self, image, nId, byref(self.ctypes_data))
         buffer = self.mem_buffer(self.ctypes_data, self.width * self.height)
-        self.data = np.frombuffer(buffer, np.dtype('uint8'))
-        self.data = np.reshape(self.data, [self.height, self.width])
-
+        if(data is None):
+            self.data = np.frombuffer(buffer, np.dtype('uint8'))
+            self.data = np.reshape(self.data, [self.height, self.width])
+        else:
+            data[index] = np.reshape(np.frombuffer(buffer, np.dtype('uint8')), [self.height, self.width])
         return self.CheckForSuccessError(r)
 
     def GetError(self):
