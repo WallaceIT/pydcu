@@ -187,7 +187,7 @@ class camera(HCAM):
             logger.warning("Buggy Video Camera: Not all available rates are exposed.")
             self.current_rate_idx = 0
         if os.name == 'nt':
-            self.hEvent = [None] * 14
+            self.hEvent = [None] * 25
         return None
 
     def CheckForSuccessError(self, return_value):
@@ -734,6 +734,11 @@ class camera(HCAM):
         r = CALL('SetExternalTrigger', self, IS.SET_TRIGGER_LO_HI)  # FIXME: maybe a mask is required??
         return self.CheckForSuccessError(r)
 
+    def ForceTrigger(self):
+        ''' forces a software trigger '''
+        r = CALL('ForceTrigger', self)
+        return self.CheckForSuccessError(r)
+
     def enableAutoGain(self):
         r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
         return r
@@ -847,8 +852,8 @@ class camera(HCAM):
 
     def initEvent(self, event=IS.SET_EVENT_FRAME):
         if os.name == 'nt':
-            self.hEvent[IS.SET_EVENT_FRAME] = win32event.CreateEvent(None, 0, 0, None)
-            handle = ctypes.c_int(int(self.hEvent[IS.SET_EVENT_FRAME]))
+            self.hEvent[event] = win32event.CreateEvent(None, 0, 0, None)
+            handle = ctypes.c_int(int(self.hEvent[event]))
             which = ctypes.c_int(event)
             r = CALL('InitEvent', self, handle, which)
         elif os.name == 'posix':
@@ -868,6 +873,16 @@ class camera(HCAM):
     def disableEvent(self, event=IS.SET_EVENT_FRAME):
         which = ctypes.c_int(event)
         r = CALL('DisableEvent', self, which)
+
+    def waitForEvent(self, event, timeout=1000):
+        ''' wait until new frame is available '''
+        if os.name == 'nt':
+            r = win32event.WaitForSingleObject(self.hEvent[event], timeout)
+        elif os.name == 'posix':
+            which = ctypes.c_int(event)
+            timeout = ctypes.c_int(timeout)
+            r = CALL('WaitEvent', self, which, timeout)
+        return r
 
     def waitForNewFrame(self, timeout=1000):
         ''' wait until new frame is available '''
