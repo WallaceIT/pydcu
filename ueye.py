@@ -23,7 +23,6 @@ import IS
 import ctypes
 import numpy as np
 import time
-import cv2
 import logging
 
 SUCCESS = 0
@@ -316,7 +315,7 @@ class camera(HCAM):
         r = CALL('GetActSeqBuf', self, paqID, ppcMem, ppcMemLast)
         return aqID.value  # FIXME: compare pointers to get the correct SEQUENCE ID
 
-    def AllocImageMem(self, width=260, height=216, bitpixel=8, image=None, nId=None):
+    def AllocImageMem(self, width=1024, height=768, bitpixel=8, image=None, nId=None):
         """
         AllocImageMem() allocates image memory for an image with width,
         width and height, height and colour depth bitspixel. Memory size
@@ -381,7 +380,7 @@ class camera(HCAM):
         AllocImgMem() has to be given to parameter pcImgMem.
         """
         if image is None:
-            r = CALL("SetImageMem", self, self.image, self.d)
+            r = CALL("SetImageMem", self, self.image, self.id)
         else:
             r = CALL("SetImageMem", self, image, nId)
         return self.CheckForSuccessError(r)
@@ -490,7 +489,7 @@ class camera(HCAM):
     def FreezeVideo(self, wait=IS.WAIT):
         CALL("FreezeVideo", self, INT(wait))
 
-    def CopyImageMem(self, image, nId, data=None, index=None):
+    def CopyImageMem(self, image=None, nId=None, data=None, index=None):
         """
         CopyImageMem() copies the contents of the image memory, as
         described is pcSource and nID to the area in memory, which
@@ -664,7 +663,7 @@ class camera(HCAM):
         r = CALL('GetColorDepth', self, byref(self.pnCol), byref(self.pnColMode))
         return self.CheckForSuccessError(r)
 
-    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=260, height=216):
+    def SetAOI(self, isType=IS.SET_IMAGE_AOI, x=0, y=0, width=1024, height=768):
         """
         With is_SetAOI() the size and position of an AOI can be set with one command call. Possible
         AOI are:
@@ -730,6 +729,11 @@ class camera(HCAM):
         ret['pval2'] = pval2
         return ret
 
+    def SetExternalTrigger(self, triggerMode=0):
+        ''' sets the trigger mode '''
+        r = CALL('SetExternalTrigger', self, IS.SET_TRIGGER_LO_HI)  # FIXME: maybe a mask is required??
+        return self.CheckForSuccessError(r)
+
     def enableAutoGain(self):
         r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
         return r
@@ -755,6 +759,11 @@ class camera(HCAM):
         ''' not supported yet by the driver '''
         r = self.SetAutoParameter(isType=IS.SET_ENABLE_AUTO_WHITEBALANCE, pval1=0, pval2=0)
         return r
+
+    def getAutoWhitebalance(self):
+        ''' not supported yet by the driver '''
+        r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_WHITEBALANCE, pval1=1, pval2=0)
+        return bool(r['pval1'])
 
     def getAutoGain(self):
         r = self.SetAutoParameter(isType=IS.GET_ENABLE_AUTO_GAIN, pval1=1, pval2=0)
@@ -870,32 +879,8 @@ class camera(HCAM):
             r = CALL('WaitEvent', self, which, timeout)
         return r
 
-    def read(self):
-        """
-        wrapper to make analogous to opencv call
-        return most recent frame
-        """
-        self.waitForNewFrame()
-        now = time.time()
-        self.CopyImageMem()
-        # frame = self.init_frame.copy()
-        # frame[self.t_roi[0]:self.t_roi[2],self.t_roi[1]:self.t_roi[3]] = self.data[self.roi[0]:self.roi[2],self.roi[1]:self.roi[3]]
-
-        frame = cv2.cvtColor(self.data, cv2.COLOR_GRAY2RGB)
-        return Frame(now, frame)  # self.init_frame)
-
     def enum_sizes(self):
         return([(260, 216)])
-
-    # def set_exposure_time(self, exp):
-    #     ''' set exposure time of camera '''
-    #     new_exp = ctypes.c_double(0)
-    #     exp = ctypes.c_double(exp)
-    #     r = CALL('SetExposureTime', self, exp, byref(new_exp))
-    #     if r is SUCCESS:
-    #         return new_exp.value
-    #     else:
-    #         return -1
 
     def set_exposure_time(self, exp):
         ''' set exposure time of camera '''
@@ -979,24 +964,26 @@ class camera(HCAM):
         return r
 
     def createSequence(self, n=2):
+        """Create a sequence (buffer) of n elements in memory."""
         # allocate camera memory
         for x in range(0, n):
             self.image.append(ctypes.c_char_p())
             self.nId.append(ctypes.c_long())
-            self.AllocImageMem(width=1024, height=768, bitpixel=8, image=self.image[x], nId=self.nId[x])
+            self.AllocImageMem(width=1024, height=768, bitpixel=8,
+                               image=self.image[x], nId=self.nId[x])
             self.SetImageMem(image=self.image[x], nId=self.nId[x])
         # add camera memory to sequence
         for x in range(0, n):
             self.AddToSequence(image=self.image[x], nId=self.nId[x])
 
     def destroySequence(self):
+        """Clear a previously allocated sequence and free the memory."""
         self.ClearSequence()
         for x in range(0, self.seq):
             self.FreeImageMem(self.image[x], self.nId[x])
         self.seq = 0
 
     def copyData(self, data=None):
-        print self.seq
         for x in range(0, self.seq):
             self.CopyImageMem(self.image[x], self.nId[x], data, x)
 
