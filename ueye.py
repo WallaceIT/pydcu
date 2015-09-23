@@ -731,7 +731,11 @@ class camera(HCAM):
 
     def SetExternalTrigger(self, triggerMode=0):
         ''' sets the trigger mode '''
-        r = CALL('SetExternalTrigger', self, IS.SET_TRIGGER_LO_HI)  # FIXME: maybe a mask is required??
+        r = CALL('SetExternalTrigger', self, IS.SET_TRIGGER_LO_HI)
+        return self.CheckForSuccessError(r)
+
+    def DisableExternalTrigger(self):
+        r = CALL('SetExternalTrigger', self, IS.SET_TRIGGER_OFF)
         return self.CheckForSuccessError(r)
 
     def ForceTrigger(self):
@@ -952,8 +956,9 @@ class camera(HCAM):
 
     def set_hardware_gain(self, nMaster):
         nMaster = ctypes.c_int(nMaster)
-        ignore_me = ctypes.c_double(IS.IGNORE_PARAMETER)
+        ignore_me = ctypes.c_int(IS.IGNORE_PARAMETER)
         r = CALL('SetHardwareGain', self, nMaster, ignore_me, ignore_me, ignore_me)
+        # return self.CheckForSuccessError(r)
         if r is SUCCESS:
             return True
         else:
@@ -998,7 +1003,7 @@ class camera(HCAM):
             self.FreeImageMem(self.image[x], self.nId[x])
         self.seq = 0
 
-    def copyData(self, data=None):
+    def copyData(self, data):
         for x in range(0, self.seq):
             self.CopyImageMem(self.image[x], self.nId[x], data, x)
 
