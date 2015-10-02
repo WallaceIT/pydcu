@@ -489,7 +489,7 @@ class camera(HCAM):
     def FreezeVideo(self, wait=IS.WAIT):
         CALL("FreezeVideo", self, INT(wait))
 
-    def CopyImageMem(self, image=None, nId=None, data=None, index=None, reshape=True):
+    def CopyImageMem(self, image=None, nId=None, data=None, index=None):
         """
         CopyImageMem() copies the contents of the image memory, as
         described is pcSource and nID to the area in memory, which
