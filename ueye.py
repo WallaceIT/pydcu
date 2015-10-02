@@ -489,7 +489,7 @@ class camera(HCAM):
     def FreezeVideo(self, wait=IS.WAIT):
         CALL("FreezeVideo", self, INT(wait))
 
-    def CopyImageMem(self, image=None, nId=None, data=None, index=None):
+    def CopyImageMem(self, image=None, nId=None, data=None, index=None, reshape=True):
         """
         CopyImageMem() copies the contents of the image memory, as
         described is pcSource and nID to the area in memory, which
@@ -504,7 +504,7 @@ class camera(HCAM):
             self.data = np.frombuffer(buffer, np.dtype('uint8'))
             self.data = np.reshape(self.data, [self.height, self.width])
         else:
-            data[index] = np.copy(np.reshape(np.frombuffer(buffer, np.dtype('uint8')), [self.height, self.width]))
+            data[index] = np.copy(np.frombuffer(buffer, np.dtype('uint8')))
         return self.CheckForSuccessError(r)
 
     def GetError(self):
